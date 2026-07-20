@@ -37,6 +37,8 @@ services:
       PLATFORM_ENDPOINTS: "false"
       # With --profile temporal, start as: ENGINE_NAME=temporal podman compose ...
       ENGINE_NAME: ${ENGINE_NAME:-langgraph}
+      # Redis is opt-in: --profile streaming + REDIS_IP=redis
+      REDIS_IP: ${REDIS_IP:-}
       TEMPORAL_HOST: temporal:7233
       MONGODB_IP: mongodb
       MONGODB_PORT: "27017"

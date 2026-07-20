@@ -220,6 +220,27 @@ def get_session_state(session_id):
         return jsonify({"error": str(e)}), 500
 
 
+@sessions_bp.route("/session.events.get", methods=["GET"])
+@from_query({
+    "session_id": fields.Str(data_key="sessionId", required=True),
+    "offset": fields.Int(data_key="offset", load_default=0),
+    "limit": fields.Int(data_key="limit", load_default=1000),
+})
+def get_session_events(session_id, offset, limit):
+    """Durable transcript ([1.2], issue #8): events persisted for a session."""
+    sink = current_app.container.session_event_sink
+    if sink is None:
+        return jsonify({"error": "transcript persistence is disabled"}), 501
+    try:
+        return jsonify({
+            "session_id": session_id,
+            "count": sink.count(session_id),
+            "events": sink.list_events(session_id, offset=offset, limit=limit),
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @sessions_bp.route("/session.chat.get", methods=["GET"])
 @from_query({
     "session_id": fields.Str(data_key="sessionId", required=True),

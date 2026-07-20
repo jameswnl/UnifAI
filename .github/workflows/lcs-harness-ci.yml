@@ -97,6 +97,7 @@ jobs:
           MONGODB_IP: localhost
           MONGODB_PORT: "27017"
           MONGO_DB: UnifAI
+          REDIS_IP: ""
           SECRET_KEY: harness-e2e-ci-only
         run: |
           mas api dev --port 8002 &> mas-api.log &
@@ -153,6 +154,7 @@ jobs:
           PLATFORM_ENDPOINTS: "false"
           DB_BACKEND: postgres
           POSTGRES_DSN: postgresql://unifai:unifai@localhost:5432/unifai
+          REDIS_IP: ""
           SECRET_KEY: harness-e2e-ci-only
         run: |
           mas api dev --port 8002 &> mas-api.log &

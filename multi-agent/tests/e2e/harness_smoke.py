@@ -78,7 +78,13 @@ def main() -> None:
     text = json.dumps(result)
     assert status == 200, f"execute failed: {status} {text}"
     assert "Mock Agent" in text, f"mock agent answer missing from result: {text[:500]}"
-    print("[4/4] execution returned the mock agent answer — smoke test PASSED")
+    print("[4/5] execution returned the mock agent answer")
+
+    status, transcript = call(
+        f"{base}/api/sessions/session.events.get?sessionId={run_id}")
+    assert status == 200, f"transcript fetch failed: {status} {transcript}"
+    assert transcript["count"] > 0, "durable transcript is empty"
+    print(f"[5/5] durable transcript has {transcript['count']} events — smoke test PASSED")
 
 
 if __name__ == "__main__":
