@@ -31,6 +31,7 @@ openshell = ["openshell>=0.0.59"]
 rag = ["jsonschema"]
 redis = ["redis"]
 triggers = ["croniter"]
+otel = ["opentelemetry-sdk", "opentelemetry-exporter-otlp-proto-http"]
 all = [
     "mas[flask,mongo,temporal,langgraph,llms,tools,a2a,claude,rag,redis,openshell]",
 ]

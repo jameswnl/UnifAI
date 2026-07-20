@@ -44,6 +44,10 @@ class AppConfig(SharedConfig):
     durable_approvals: bool = True
     hitl_timeout_seconds: float = 86400.0
     hitl_response_ttl_seconds: int = 86400
+    # Observability ([4.3], issue #25)
+    otel_enabled: bool = False
+    otel_exporter: str = "console"       # console | otlp
+    otel_endpoint: str = ""              # OTLP collector base URL
     # Triggers ([4.1], issue #23)
     triggers_enabled: bool = True
     trigger_webhook_token: str = ""      # empty = open (dev); set to require header

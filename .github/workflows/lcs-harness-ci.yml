@@ -31,7 +31,7 @@ jobs:
       - name: Install MAS with all extras
         run: |
           pip install -e "./global_utils[multi-agent]"
-          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,a2a,claude,redis,rag,temporal,triggers,test]"
+          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,a2a,claude,redis,rag,temporal,triggers,otel,test]"
 
       - name: Run unit tests (minus quarantine)
         working-directory: multi-agent

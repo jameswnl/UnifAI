@@ -119,6 +119,10 @@ class AppContainer(metaclass=SingletonMeta):
         from outbound.notify import build_notifier_hub
         self.notifier_hub = build_notifier_hub(cfg)
 
+        # Observability ([4.3], issue #25)
+        from mas.core.telemetry import build_telemetry
+        self.telemetry = build_telemetry(cfg)
+
         self.element_registry = ElementRegistry()
         self.element_registry.auto_discover()
 
@@ -327,7 +331,8 @@ class AppContainer(metaclass=SingletonMeta):
 
         self.session_lifecycle = SessionLifecycle(repository=self.session_repo,
                                                   audit=self.audit_trail,
-                                                  notifier=self.notifier_hub)
+                                                  notifier=self.notifier_hub,
+                                                  telemetry=self.telemetry)
         self.input_projector = SessionInputProjector(repository=self.session_repo)
 
         self.channel_factory = self._create_channel_factory(cfg)
