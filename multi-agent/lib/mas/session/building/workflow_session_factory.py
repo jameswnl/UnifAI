@@ -36,11 +36,14 @@ class WorkflowSessionFactory:
             engine_name: str,
             auth_service: Optional[AuthService] = None,
             platform_config: Optional[PlatformConfig] = None,
+            checkpointer: object = None,
     ):
         self._elements = element_registry
         self._engine_name = engine_name
         self._auth_service = auth_service
         self._platform_config = platform_config
+        # LangGraph durability ([2.3], issue #13)
+        self._checkpointer = checkpointer
         self._session_builder = SessionElementBuilder(element_registry)
 
     @property
@@ -88,7 +91,9 @@ class WorkflowSessionFactory:
         rt_graph_plan = self.build_runtime_plan(blueprint_spec, ctx_holder=ctx_holder)
         rt_graph_plan.pretty_print()
 
-        engine_builder = GraphBuilderFactory(GraphState).create(self._engine_name)
+        engine_builder = GraphBuilderFactory(
+            GraphState, checkpointer=self._checkpointer,
+        ).create(self._engine_name)
         executable_graph = engine_builder.compile_from_plan(rt_graph_plan)
 
         return WorkflowSession(

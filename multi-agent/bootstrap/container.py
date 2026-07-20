@@ -290,12 +290,18 @@ class AppContainer(metaclass=SingletonMeta):
             shared_storage=cfg.shared_storage,
         )
 
+        # LangGraph durability ([2.3], issue #13): Postgres checkpointer for
+        # the in-process engine (None for temporal / when disabled).
+        from outbound.langgraph.checkpointer import build_langgraph_checkpointer
+        self.langgraph_checkpointer = build_langgraph_checkpointer(cfg)
+
         # ── Session factory ───────────────────────────────────────────
         self.session_factory = WorkflowSessionFactory(
             element_registry=self.element_registry,
             engine_name=cfg.engine_name,
             auth_service=self.auth_service,
             platform_config=self.platform_config,
+            checkpointer=self.langgraph_checkpointer,
         )
         if self._use_postgres:
             from outbound.postgres import PgSessionRepository
@@ -356,6 +362,17 @@ class AppContainer(metaclass=SingletonMeta):
             lifecycle=self.session_lifecycle,
             channel_factory=self.channel_factory,
             gate_factory=self.gate_factory,
+        )
+        self._foreground_runner = foreground_runner
+
+        # Resume-on-startup ([2.3], issue #13): re-run RUNNING sessions
+        # left behind by a crashed replica, continuing from their
+        # LangGraph checkpoints. Only meaningful with a checkpointer.
+        from mas.session.execution.resume import ResumeService
+        self.resume_service = ResumeService(
+            session_repo=self.session_repo,
+            session_manager=self.session_manager,
+            foreground_runner=foreground_runner,
         )
 
         background_engine = self._create_background_engine(cfg.engine_name)

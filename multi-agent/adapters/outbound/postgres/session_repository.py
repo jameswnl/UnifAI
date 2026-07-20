@@ -75,6 +75,11 @@ class PgSessionRepository(SessionRepository):
     def delete_by_identity(self, identity: Identity) -> int:
         return self._col.delete_by_identity(identity)
 
+    def list_run_ids_by_status(self, status: str) -> List[str]:
+        rows = self._col.execute(
+            "SELECT pk FROM {table} WHERE doc ->> 'status' = %s", (status,))
+        return [r[0] for r in rows]
+
     # ── owner-scoped statistics ──────────────────────────────────────
 
     def count(self, identity: Identity, filter: Dict[str, Any]) -> int:

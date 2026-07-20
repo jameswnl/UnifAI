@@ -20,7 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 flask = ["flask", "flask-cors", "gunicorn"]
 mongo = ["pymongo"]
-postgres = ["psycopg[binary]>=3.1", "psycopg-pool"]
+postgres = ["psycopg[binary]>=3.1", "psycopg-pool", "langgraph-checkpoint-postgres"]
 temporal = ["temporalio"]
 langgraph = ["langgraph", "langchain", "langchain-core", "deepagents"]
 llms = ["openai", "langchain-openai", "langchain-google-genai"]
