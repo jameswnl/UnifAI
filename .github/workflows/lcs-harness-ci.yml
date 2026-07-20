@@ -65,3 +65,43 @@ jobs:
         working-directory: multi-agent
         run: |
           python -m pytest tests/unit/test_endpoint_gating.py tests/unit/blueprints -q
+
+  # Headless E2E on the harness profile ([0.4], issue #4): live API + Mongo,
+  # mock blueprint executed end-to-end. No LLM/Redis/Temporal.
+  harness-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mongodb:
+        image: mongo:8
+        ports:
+          - 27017:27017
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install harness-profile extras only
+        run: |
+          pip install -e "./global_utils[multi-agent]"
+          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,redis,rag,test]"
+
+      - name: Start MAS API (harness profile) and run smoke test
+        working-directory: multi-agent
+        env:
+          ENGINE_NAME: langgraph
+          PLATFORM_ENDPOINTS: "false"
+          MONGODB_IP: localhost
+          MONGODB_PORT: "27017"
+          MONGO_DB: UnifAI
+        run: |
+          mas api dev --port 8002 &> mas-api.log &
+          python tests/e2e/harness_smoke.py --url http://localhost:8002
+
+      - name: Server log on failure
+        if: failure()
+        working-directory: multi-agent
+        run: tail -80 mas-api.log
