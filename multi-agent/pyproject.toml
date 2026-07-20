@@ -32,7 +32,7 @@ redis = ["redis"]
 all = [
     "mas[flask,mongo,temporal,langgraph,llms,tools,a2a,claude,rag,redis,openshell]",
 ]
-test = ["pytest>=6.0"]
+test = ["pytest>=6.0", "pytest-timeout"]
 
 [project.scripts]
 mas = "bootstrap.cli:app"
@@ -61,8 +61,7 @@ python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 pythonpath = ["lib", "adapters", "."]
-importmode = "importlib"
-addopts = "-v --tb=short --strict-markers --strict-config --disable-warnings --color=yes"
+addopts = "-v --tb=short --import-mode=importlib --strict-markers --strict-config --disable-warnings --color=yes"
 console_output_style = "progress"
 junit_family = "xunit2"
 minversion = "6.0"
@@ -88,4 +87,22 @@ markers = [
     "smoke: Smoke tests for basic functionality",
     "regression: Regression tests for bug fixes",
     "performance: Performance and load tests",
+    "orchestrator: Orchestrator node tests",
+    "workload: Workload and work-plan model tests",
+    "concurrent: Concurrency tests",
+    "custom_agent: Custom agent node tests",
+    "custom_blueprint: Custom blueprint tests",
+    "delegation: Delegation tool tests",
+    "edge_cases: Edge case tests",
+    "hierarchical: Hierarchical workflow tests",
+    "multi_node: Multi-node workflow tests",
+    "new_architecture: New architecture tests",
+    "orchestrator_agent: Orchestrator agent tests",
+    "phases: Orchestrator phase tests",
+    "priority: Priority handling tests",
+    "real_flow: Real flow tests",
+    "responses: Response handling tests",
+    "stress: Stress tests",
+    "threads: Thread hierarchy tests",
+    "workflows: Workflow tests",
 ]
