@@ -1,6 +1,8 @@
 # Implementation Plan — Minimal Lightspeed Agent Harness (from UnifAI)
 
 **Date:** 2026-07-20
+**New here?** Start with [HANDOFF.md](HANDOFF.md) — full pick-up guide.
+
 **Companion doc:** [stripdown-analysis.md](stripdown-analysis.md) — all rationale lives there; this doc is sequencing, priorities, and scope cuts. Build-item numbers (#1–#15) refer to the analysis doc §9.
 
 ## Status (prototype on the `lcs-main` fork line)
