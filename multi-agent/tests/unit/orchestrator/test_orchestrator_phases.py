@@ -200,7 +200,7 @@ class TestPhaseToolRegistration(BaseUnitTest):
         
         # Planning should have work plan tools (using namespaced names)
         tool_names = [tool.name for tool in planning_tools]
-        assert "workplan.create_or_update" in tool_names or "create_or_update_work_plan" in tool_names
+        assert "workplan_create_or_update" in tool_names or "create_or_update_work_plan" in tool_names
         # Just verify we have planning tools
         assert len(planning_tools) > 0
     
@@ -223,9 +223,9 @@ class TestPhaseToolRegistration(BaseUnitTest):
         
         # Allocation should have assignment and topology tools (using namespaced names)
         tool_names = [tool.name for tool in allocation_tools]
-        assert "workplan.assign" in tool_names or "assign_work_item" in tool_names
-        assert "topology.list_adjacent" in tool_names or "list_adjacent_nodes" in tool_names
-        assert "topology.get_node_card" in tool_names or "get_node_card" in tool_names
+        assert "workplan_assign" in tool_names or "assign_work_item" in tool_names
+        assert "topology_list_adjacent" in tool_names or "list_adjacent_nodes" in tool_names
+        assert "topology_get_node_card" in tool_names or "get_node_card" in tool_names
     
     def test_execution_phase_has_delegation_tools(self):
         """✅ MEDIUM: Test execution phase has delegation tools."""
@@ -267,7 +267,7 @@ class TestPhaseToolRegistration(BaseUnitTest):
         
         # Monitoring should have status tools (using namespaced names)
         tool_names = [tool.name for tool in monitoring_tools]
-        assert "workplan.mark" in tool_names or "mark_work_item_status" in tool_names
+        assert "workplan_mark" in tool_names or "mark_work_item_status" in tool_names
     
     def test_domain_tools_provided_to_provider(self, basic_test_tools):
         """✅ MEDIUM: Test domain tools are stored in provider."""

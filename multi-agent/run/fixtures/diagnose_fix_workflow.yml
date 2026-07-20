@@ -1,0 +1,74 @@
+name: "Diagnose and Fix"
+description: |
+  Two-agent pipeline: first agent diagnoses, second agent proposes a fix.
+  Models a real incident response flow without human approval gates.
+
+llms:
+  - rid: llm
+    name: openai
+    type: openai
+    config:
+      type: openai
+      model_name: gpt-4o-mini
+      base_url: https://api.openai.com/v1
+
+nodes:
+  - rid: user_input
+    name: User Question
+    type: user_question_node
+    config:
+      type: user_question_node
+
+  - rid: diagnostician
+    name: Diagnostician
+    type: custom_agent_node
+    config:
+      type: custom_agent_node
+      llm: llm
+      system_message: |
+        You are a production diagnostician. Analyze the reported issue
+        and produce a clear diagnosis: what is broken, why, and how
+        severe it is. Be specific about affected components.
+
+  - rid: fixer
+    name: Remediation Agent
+    type: custom_agent_node
+    config:
+      type: custom_agent_node
+      llm: llm
+      system_message: |
+        You are a remediation engineer. Based on the diagnosis from
+        the prior step, propose a concrete fix. Include the exact
+        commands or configuration changes needed. Warn about any risks.
+
+  - rid: final
+    name: Final Answer
+    type: final_answer_node
+    config:
+      type: final_answer_node
+
+plan:
+  - uid: input
+    node: user_input
+    meta:
+      display_name: Incident Report
+
+  - uid: diagnose
+    after: input
+    node: diagnostician
+    meta:
+      display_name: Diagnose
+      description: Analyze and identify root cause
+
+  - uid: fix
+    after: diagnose
+    node: fixer
+    meta:
+      display_name: Fix
+      description: Propose remediation based on diagnosis
+
+  - uid: answer
+    after: fix
+    node: final
+    meta:
+      display_name: Remediation Plan

@@ -45,7 +45,9 @@ class OpenAILLM(BaseLLM):
         self._temperature = temperature
         self._max_tokens = max_tokens
         self._tools: Optional[List[ChatCompletionToolParam]] = None
-        self._client = OpenAI(api_key=api_key, base_url=base_url, **extra)
+        import os
+        resolved_key = api_key if api_key and api_key != "EMPTY" else os.environ.get("OPENAI_API_KEY", api_key)
+        self._client = OpenAI(api_key=resolved_key, base_url=base_url, **extra)
 
     # ------------------------------------------------------------------
     # BaseLLM interface

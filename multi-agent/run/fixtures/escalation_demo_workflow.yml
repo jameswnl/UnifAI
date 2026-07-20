@@ -1,0 +1,61 @@
+name: "Escalation Demo"
+description: |
+  Demonstrates retry + escalation. The agent analyzes a production
+  incident with max_retries=1. If both attempts fail, the session
+  escalates to a human operator with the full failure history.
+
+llms:
+  - rid: llm
+    name: openai
+    type: openai
+    config:
+      type: openai
+      model_name: gpt-4o-mini
+      base_url: https://api.openai.com/v1
+
+nodes:
+  - rid: user_input
+    name: User Question
+    type: user_question_node
+    config:
+      type: user_question_node
+
+  - rid: analyst
+    name: Incident Analyst
+    type: custom_agent_node
+    config:
+      type: custom_agent_node
+      llm: llm
+      system_message: |
+        You are an incident analyst. Investigate the production incident:
+        - Identify the root cause from the symptoms described
+        - Assess severity (low/medium/high/critical)
+        - Recommend immediate mitigation steps
+        Be thorough but concise.
+
+  - rid: final
+    name: Final Answer
+    type: final_answer_node
+    config:
+      type: final_answer_node
+
+plan:
+  - uid: input
+    node: user_input
+    meta:
+      display_name: Incident Report
+
+  - uid: analyze
+    after: input
+    node: analyst
+    meta:
+      display_name: Analyze Incident
+      description: Investigate root cause with retry on failure
+      max_retries: 1
+      retry_backoff_s: 2.0
+
+  - uid: answer
+    after: analyze
+    node: final
+    meta:
+      display_name: Incident Analysis
