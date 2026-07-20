@@ -8,7 +8,7 @@ and lifecycle edge cases.
 
 import pytest
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch, Mock
 from typing import List
 
@@ -148,8 +148,8 @@ class TestPacketLifecycle:
             identity=ElementAddress(uid="test_node")
         )
         
-        now = datetime.utcnow()
-        
+        now = datetime.now(timezone.utc)
+
         # Create packets with different expiration states
         packets = [
             # Already expired
@@ -193,8 +193,8 @@ class TestPacketLifecycle:
             max_packet_age=timedelta(hours=1)
         )
         
-        now = datetime.utcnow()
-        
+        now = datetime.now(timezone.utc)
+
         # Create packets with different states
         packets = []
         

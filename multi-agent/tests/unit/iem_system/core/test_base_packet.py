@@ -7,7 +7,7 @@ Covers packet creation, expiration, acknowledgment tracking, and serialization.
 
 import pytest
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from mas.core.iem.packets import BaseIEMPacket, TaskPacket
@@ -76,7 +76,7 @@ class TestBaseIEMPacket:
         
         # Set TTL that has already passed
         packet.ttl = timedelta(seconds=1)
-        packet.ts = datetime.utcnow() - timedelta(seconds=2)
+        packet.ts = datetime.now(timezone.utc) - timedelta(seconds=2)
         
         assert packet.is_expired
         
@@ -191,7 +191,7 @@ class TestBaseIEMPacket:
             
     def test_packet_with_custom_timestamp(self):
         """Test packet creation with custom timestamp."""
-        custom_time = datetime.utcnow() - timedelta(hours=1)
+        custom_time = datetime.now(timezone.utc) - timedelta(hours=1)
         
         packet = TaskPacket(
             src=ElementAddress(uid="test_src"),
@@ -247,17 +247,17 @@ class TestBaseIEMPacket:
         packet = PacketFactory.create_task_packet()
         
         # Set packet timestamp to various times
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         packet.ts = now
         packet.ttl = timedelta(seconds=5)
-        
+
         # Should not be expired immediately
         assert not packet.is_expired
-        
+
         # Mock time progression
-        with patch('core.iem.packets.datetime') as mock_datetime:
+        with patch('mas.core.iem.packets.datetime') as mock_datetime:
             # Mock current time to be 10 seconds in the future
-            mock_datetime.utcnow.return_value = now + timedelta(seconds=10)
-            
+            mock_datetime.now.return_value = now + timedelta(seconds=10)
+
             # Now packet should be expired
             assert packet.is_expired

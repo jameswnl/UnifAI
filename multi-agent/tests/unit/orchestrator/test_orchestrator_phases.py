@@ -287,10 +287,14 @@ class TestPhaseToolRegistration(BaseUnitTest):
         # Domain tools should be stored in provider
         assert len(provider._domain_tools) == len(basic_test_tools)
         
-        # Each phase should have some tools available
+        # Each phase except synthesis should have some tools available
+        # Synthesis is intentionally tool-free (produces text responses only)
         for phase_name in provider.get_supported_phases():
             phase_tools = provider.get_tools_for_phase(phase_name)
-            assert len(phase_tools) > 0, f"Phase {phase_name} should have tools"
+            if phase_name == "synthesis":
+                assert len(phase_tools) == 0, "Synthesis phase should have no tools (text-only)"
+            else:
+                assert len(phase_tools) > 0, f"Phase {phase_name} should have tools"
 
 
 @pytest.mark.unit

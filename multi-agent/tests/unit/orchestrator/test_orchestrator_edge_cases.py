@@ -170,8 +170,8 @@ class TestMissingData(BaseUnitTest):
         assert item is not None
         assert item.assigned_uid is None or item.assigned_uid == ""
     
-    def test_work_item_without_correlation_id(self, mock_llm_provider):
-        """✅ SIMPLE: Test work item without correlation ID."""
+    def test_work_item_without_delegation_exchanges(self, mock_llm_provider):
+        """✅ SIMPLE: Test work item without delegation exchanges (no correlation)."""
         item = WorkItem(
             id="item_1",
             kind=WorkItemKind.REMOTE,
@@ -179,12 +179,12 @@ class TestMissingData(BaseUnitTest):
             description="Test",
             status=WorkItemStatus.PENDING,
             assigned_uid="worker1"
-            # No correlation_task_id
+            # No result with delegations — no correlation tracking yet
         )
-        
+
         # Should create successfully
         assert item is not None
-        assert item.correlation_task_id is None or item.correlation_task_id == ""
+        assert item.result is None  # No delegations yet
 
 
 @pytest.mark.unit
@@ -442,12 +442,11 @@ class TestNullAndOptionalValues(BaseUnitTest):
             status=WorkItemStatus.PENDING
             # All optional fields default to None
         )
-        
+
         # Should create successfully
         assert item is not None
         assert item.assigned_uid is None or item.assigned_uid == ""
-        assert item.correlation_task_id is None or item.correlation_task_id == ""
-        assert item.result_ref is None
+        assert item.result is None
     
     def test_work_plan_summary_none(self, mock_llm_provider):
         """✅ SIMPLE: Test work plan with None summary."""

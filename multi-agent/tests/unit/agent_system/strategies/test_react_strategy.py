@@ -57,9 +57,9 @@ class TestReActStrategy:
                 ToolCall(name="test_tool", args={"query": "test"}, tool_call_id="call-123")
             ]
         )
-        
+
         with patch.object(react_strategy, 'llm_chat', return_value=mock_response):
-            steps = react_strategy.think(sample_chat_messages, [])
+            steps = react_strategy.think(sample_chat_messages)
         
         assert len(steps) == 2  # PLANNING + ACTION
         assert steps[0].type == StepType.PLANNING
@@ -81,8 +81,8 @@ class TestReActStrategy:
         )
         
         with patch.object(react_strategy, 'llm_chat', return_value=mock_response):
-            steps = react_strategy.think(sample_chat_messages, [])
-        
+            steps = react_strategy.think(sample_chat_messages)
+
         # Should have 1 PLANNING + 3 ACTION steps
         assert len(steps) == 4
         assert steps[0].type == StepType.PLANNING
@@ -106,13 +106,13 @@ class TestReActStrategy:
         # Mock parser to return AgentFinish
         with patch.object(react_strategy, 'llm_chat', return_value=mock_response), \
              patch.object(react_strategy.parser, 'parse') as mock_parse:
-            
+
             mock_parse.return_value = AgentFinish(
                 output="The weather is sunny today.",
                 reasoning="Complete answer"
             )
-            
-            steps = react_strategy.think(sample_chat_messages, [])
+
+            steps = react_strategy.think(sample_chat_messages)
         
         assert len(steps) == 2  # PLANNING + FINISH
         assert steps[0].type == StepType.PLANNING
@@ -125,34 +125,22 @@ class TestReActStrategy:
             role=Role.ASSISTANT,
             content="Invalid response"
         )
-        
+
         parse_error = ParseError(
             "Invalid format",
             ParseErrorType.INVALID_FORMAT,
             "Invalid response",
             recoverable=True
         )
-        
-        # Mock the SystemError.from_parse_error to avoid constants import issue
+
         with patch.object(react_strategy, 'llm_chat', return_value=mock_response), \
-             patch.object(react_strategy.parser, 'parse', side_effect=parse_error), \
-             patch('elements.nodes.common.agent.primitives.SystemError.from_parse_error') as mock_system_error:
-            
-            from mas.elements.nodes.common.agent.primitives import SystemError
-            mock_system_error.return_value = SystemError(
-                message="Parse error occurred",
-                error_type="parse_error",
-                raw_output="Invalid response",
-                guidance="Please provide valid format",
-                recoverable=True
-            )
-            
-            steps = react_strategy.think(sample_chat_messages, [])
-        
+             patch.object(react_strategy.parser, 'parse', side_effect=parse_error):
+
+            steps = react_strategy.think(sample_chat_messages)
+
         assert len(steps) == 1
         assert steps[0].type == StepType.ERROR
         assert steps[0].data == parse_error
-        assert react_strategy._pending_system_error is not None
     
     def test_reasoning_validation_too_short(self, react_strategy, sample_chat_messages):
         """Test reasoning validation fails for short responses."""
@@ -160,47 +148,37 @@ class TestReActStrategy:
             role=Role.ASSISTANT,
             content="Short"  # Less than min_reasoning_length (10)
         )
-        
+
         # Mock parser to return AgentFinish (which triggers validation)
         with patch.object(react_strategy, 'llm_chat', return_value=mock_response), \
-             patch.object(react_strategy.parser, 'parse') as mock_parse, \
-             patch('elements.nodes.common.agent.primitives.SystemError.from_parse_error') as mock_system_error:
-            
-            from mas.elements.nodes.common.agent.primitives import SystemError
-            mock_system_error.return_value = SystemError(
-                message="Reasoning too short",
-                error_type="validation_error",
-                raw_output="Short",
-                guidance="Please provide more detailed reasoning",
-                recoverable=True
-            )
-            
+             patch.object(react_strategy.parser, 'parse') as mock_parse:
+
             mock_parse.return_value = AgentFinish(
                 output="Short answer",
                 reasoning="Short"
             )
-            
-            steps = react_strategy.think(sample_chat_messages, [])
+
+            steps = react_strategy.think(sample_chat_messages)
         
         assert len(steps) == 1
         assert steps[0].type == StepType.ERROR
         assert isinstance(steps[0].data, ParseError)
         assert "Reasoning too short" in str(steps[0].data)
     
-    def test_build_context_with_observations(self, react_strategy, sample_chat_messages, sample_agent_observations):
-        """Test context building with tool observations."""
-        context = react_strategy.build_context(sample_chat_messages, sample_agent_observations)
-        
-        # Should have: system + user + tool messages
-        assert len(context) >= 3
-        
-        # Check that tool messages are properly formatted
-        tool_messages = [msg for msg in context if msg.role == Role.TOOL]
-        assert len(tool_messages) == len(sample_agent_observations)
-        
-        for tool_msg, obs in zip(tool_messages, sample_agent_observations):
-            assert tool_msg.tool_call_id == obs.action_id
-            assert obs.output in tool_msg.content
+    def test_build_context_with_observations(self, react_strategy, sample_chat_messages):
+        """Test context building includes system prompt and preserves messages."""
+        context = react_strategy.build_context(sample_chat_messages)
+
+        # Should have: system + user messages
+        assert len(context) == 2
+
+        # First message should be system message with strategy prompt
+        assert context[0].role == Role.SYSTEM
+
+        # User message should be preserved
+        user_messages = [msg for msg in context if msg.role == Role.USER]
+        assert len(user_messages) == 1
+        assert user_messages[0].content == "What is the weather today?"
     
     def test_should_continue_max_steps_reached(self, react_strategy):
         """Test should_continue returns False when max steps reached."""
@@ -275,36 +253,22 @@ class TestReActStrategy:
             "Invalid response",
             recoverable=True
         )
-        
+
         with patch.object(react_strategy, 'llm_chat') as mock_llm, \
-             patch.object(react_strategy.parser, 'parse', side_effect=parse_error), \
-             patch('elements.nodes.common.agent.primitives.SystemError.from_parse_error') as mock_system_error:
-            
-            from mas.elements.nodes.common.agent.primitives import SystemError
-            mock_system_error.return_value = SystemError(
-                message="Parse error occurred",
-                error_type="parse_error",
-                raw_output="Invalid response",
-                guidance="Please provide valid format",
-                recoverable=True
-            )
-            
-            steps = react_strategy.think(sample_chat_messages, [])
+             patch.object(react_strategy.parser, 'parse', side_effect=parse_error):
+
+            steps = react_strategy.think(sample_chat_messages)
             assert steps[0].type == StepType.ERROR
-        
+
         # Second call - should include error feedback in context
-        mock_llm.return_value = ChatMessage(role=Role.ASSISTANT, content="Fixed response")
-        
+        # (error feedback was appended to sample_chat_messages by first think() call)
         with patch.object(react_strategy.parser, 'parse') as mock_parse:
             mock_parse.return_value = AgentFinish(output="Success", reasoning="Fixed")
-            
-            steps = react_strategy.think(sample_chat_messages, [])
-            
+
+            steps = react_strategy.think(sample_chat_messages)
+
             # Verify the strategy recovered and produced success steps
             assert len(steps) == 2  # PLANNING + FINISH
             assert steps[0].type == StepType.PLANNING
             assert steps[1].type == StepType.FINISH
             assert isinstance(steps[1].data, AgentFinish)
-            
-            # Verify that pending error was cleared after successful recovery
-            assert react_strategy._pending_system_error is None

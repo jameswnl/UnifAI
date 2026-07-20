@@ -36,11 +36,11 @@ class TestOrchestratorBasics:
             system_message="Test orchestrator",
             max_rounds=10
         )
-        
+
         assert node.llm == mock_llm
         assert node.domain_specialization == "Test orchestrator"
         assert node.max_rounds == 10
-        assert isinstance(node._updated_threads, set)
+        assert isinstance(node._orchestration_cycles, dict)
     
     def test_orchestrator_with_domain_tools(self, mock_llm, basic_test_tools):
         """Test orchestrator with domain tools."""
@@ -119,19 +119,14 @@ class TestOrchestratorWorkloadCapabilities:
         assert thread.title == "Test"
         assert thread.initiator == "orch1"
     
-    def test_orchestrator_updated_threads_tracking(self, mock_llm):
-        """Verify _updated_threads set is properly initialized."""
+    def test_orchestrator_cycles_tracking(self, mock_llm):
+        """Verify _orchestration_cycles dict is properly initialized."""
         node = OrchestratorNode(llm=mock_llm)
-        
-        # Should have empty set on initialization
-        assert isinstance(node._updated_threads, set)
-        assert len(node._updated_threads) == 0
-        
-        # Can add threads
-        node._updated_threads.add("thread_1")
-        node._updated_threads.add("thread_2")
-        assert len(node._updated_threads) == 2
-        
-        # Can clear
-        node._updated_threads.clear()
-        assert len(node._updated_threads) == 0
+
+        # Should have empty dict on initialization
+        assert isinstance(node._orchestration_cycles, dict)
+        assert len(node._orchestration_cycles) == 0
+
+        # Can be cleared (as happens at the start of each batch)
+        node._orchestration_cycles.clear()
+        assert len(node._orchestration_cycles) == 0

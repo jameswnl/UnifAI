@@ -30,26 +30,28 @@ class TestParserEdgeCases:
     
     def test_extremely_large_content(self, parser):
         """Test parser with extremely large content."""
-        # Test at the actual limit (50KB) and beyond
-        max_content = "x" * 50000  # At the limit
-        over_limit_content = "x" * 100000  # Over the limit
-        
-        # Should handle content at the limit
-        message_at_limit = ChatMessage(
+        from mas.elements.nodes.common.agent.constants import ParserDefaults
+
+        # Test at a large size well within the limit (MAX_CONTENT_LENGTH = 200000)
+        large_content = "x" * 100000  # Within the limit
+        over_limit_content = "x" * (ParserDefaults.MAX_CONTENT_LENGTH + 1)  # Over the limit
+
+        # Should handle content within the limit
+        message_within_limit = ChatMessage(
             role=Role.ASSISTANT,
-            content=max_content
+            content=large_content
         )
-        
-        result = parser.parse(message_at_limit)
+
+        result = parser.parse(message_within_limit)
         assert isinstance(result, AgentFinish)
-        assert result.output == max_content
-        
+        assert result.output == large_content
+
         # Should reject content over the limit
         message_over_limit = ChatMessage(
             role=Role.ASSISTANT,
             content=over_limit_content
         )
-        
+
         with pytest.raises(ParseError) as exc_info:
             parser.parse(message_over_limit)
         assert exc_info.value.error_type == ParseErrorType.VALIDATION_ERROR
@@ -122,73 +124,75 @@ class TestParserEdgeCases:
     
     def test_many_tool_calls_boundary(self, parser):
         """Test parser with many tool calls at boundary conditions."""
-        # Test at the actual limit (10) and beyond
-        max_tool_calls = [
+        from mas.elements.nodes.common.agent.constants import ToolExecutionDefaults
+
+        max_allowed = ToolExecutionDefaults.MAX_TOOL_CALLS_PER_MESSAGE  # 30
+
+        at_limit_tool_calls = [
             ToolCall(
                 name=f"tool_{i}",
                 args={"index": i, "data": f"value_{i}"},
                 tool_call_id=f"call-{i}"
             )
-            for i in range(10)  # At the limit
+            for i in range(max_allowed)  # At the limit
         ]
-        
+
         over_limit_tool_calls = [
             ToolCall(
                 name=f"tool_{i}",
                 args={"index": i, "data": f"value_{i}"},
                 tool_call_id=f"call-{i}"
             )
-            for i in range(15)  # Over the limit
+            for i in range(max_allowed + 1)  # Over the limit
         ]
-        
+
         # Should handle tool calls at the limit
         message_at_limit = ChatMessage(
             role=Role.ASSISTANT,
             content="Tool calls at limit test",
-            tool_calls=max_tool_calls
+            tool_calls=at_limit_tool_calls
         )
-        
+
         result = parser.parse(message_at_limit)
         assert isinstance(result, list)
-        assert len(result) == 10
-        
+        assert len(result) == max_allowed
+
         # Verify all tool calls were parsed correctly
         for i, action in enumerate(result):
             assert action.tool == f"tool_{i}"
             assert action.tool_input["index"] == i
             assert action.id == f"call-{i}"
-        
+
         # Should reject too many tool calls
         message_over_limit = ChatMessage(
             role=Role.ASSISTANT,
             content="Too many tool calls test",
             tool_calls=over_limit_tool_calls
         )
-        
+
         with pytest.raises(ParseError) as exc_info:
             parser.parse(message_over_limit)
         assert exc_info.value.error_type == ParseErrorType.VALIDATION_ERROR
         assert "Too many tool calls" in str(exc_info.value)
     
     def test_malformed_tool_call_structures(self, parser):
-        """Test parser with various malformed tool call structures."""
-        
-        # Test with string args instead of dict
-        message_string_args = ChatMessage(
-            role=Role.ASSISTANT,
-            content="String args test",
-            tool_calls=[
-                ToolCall(
-                    name="test_tool",
-                    args="should_be_dict_not_string",
-                    tool_call_id="string-args"
-                )
-            ]
-        )
-        
-        with pytest.raises(ParseError) as exc_info:
-            parser.parse(message_string_args)
-        assert exc_info.value.error_type == ParseErrorType.TOOL_CALL_ERROR
+        """Test that malformed tool call structures are rejected by Pydantic validation."""
+        from pydantic import ValidationError
+
+        # ToolCall.args is typed as Dict, so Pydantic rejects non-dict values
+        # at model construction time
+        with pytest.raises(ValidationError):
+            ChatMessage(
+                role=Role.ASSISTANT,
+                content="String args test",
+                tool_calls=[
+                    ToolCall(
+                        name="test_tool",
+                        args="should_be_dict_not_string",
+                        tool_call_id="string-args"
+                    )
+                ]
+            )
     
     def test_empty_and_none_values(self, parser):
         """Test parser with empty and None values."""
@@ -211,10 +215,10 @@ class TestParserEdgeCases:
         assert len(result) == 1
         assert result[0].reasoning == "Using empty_content_tool"  # Uses fallback reasoning
         
-        # None content
-        message_none = ChatMessage(
+        # Empty content (content: str is non-nullable, use "" instead of None)
+        message_empty = ChatMessage(
             role=Role.ASSISTANT,
-            content=None,
+            content="",
             tool_calls=[
                 ToolCall(
                     name="none_content_tool",
@@ -223,8 +227,8 @@ class TestParserEdgeCases:
                 )
             ]
         )
-        
-        result = parser.parse(message_none)
+
+        result = parser.parse(message_empty)
         assert isinstance(result, list)
         assert len(result) == 1
         assert "none_content_tool" in result[0].reasoning  # Should use fallback reasoning

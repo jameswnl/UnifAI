@@ -16,7 +16,8 @@ Tests thread management:
 import pytest
 from unittest.mock import Mock
 from mas.elements.nodes.orchestrator.orchestrator_node import OrchestratorNode
-from mas.elements.nodes.common.workload import Thread, WorkItemStatus, Task
+from mas.elements.nodes.common.workload import Thread, WorkItemStatus, Task, WorkItemResult
+from mas.elements.nodes.common.workload.models.workplan_models import DelegationExchange
 from tests.base import (
     BaseUnitTest,
     setup_node_with_state,
@@ -289,29 +290,31 @@ class TestResponseRouting(BaseUnitTest):
         # ✅ GENERIC: Use setup helper
         orch = OrchestratorNode(llm=mock_llm_provider)
         state_view, context = setup_node_with_context(orch, "orch1", ["worker1"])
-        
+
         # Create hierarchy
         hierarchy = create_thread_hierarchy(orch, "parent_1", num_children=1)
         parent = hierarchy["parent"]
         child = hierarchy["children"][0]
-        
+
         # Create work plan in PARENT thread
         plan = create_work_plan_with_items(
             parent.thread_id, "orch1",
             num_remote=1,
             remote_workers=["worker1"]
         )
-        
+
         service = orch.get_workload_service()
         workspace_service = service.get_workspace_service()
-        workspace_service.save_work_plan(plan)
-        
-        # Set correlation ID
+
+        # Set up delegation exchange (correlation now lives in DelegationExchange.task_id)
         item = list(plan.items.values())[0]
-        item.correlation_task_id = "corr_123"
         item.status = WorkItemStatus.IN_PROGRESS
+        item.result = WorkItemResult(delegations=[
+            DelegationExchange(sequence=0, task_id="corr_123",
+                               query="Do work", delegated_to="worker1")
+        ])
         workspace_service.save_work_plan(plan)
-        
+
         # Response comes from CHILD thread (simulating nested orchestration)
         response = Task(
             content="Work failed",
@@ -320,17 +323,18 @@ class TestResponseRouting(BaseUnitTest):
             thread_id=child.thread_id,  # Response from child thread!
             error="Work failed"  # Error is now a string
         )
-        
+
         # Handle response (should route to parent)
         result_thread = orch._handle_task_response(response)
-        
+
         # Should route to parent thread
         assert result_thread == parent.thread_id
-        
-        # Verify parent work plan was updated
+
+        # Verify parent work plan's delegation exchange was filled
         updated_plan = workspace_service.load_work_plan(parent.thread_id, "orch1")
         updated_item = list(updated_plan.items.values())[0]
-        assert updated_item.status == WorkItemStatus.FAILED
+        # Response is stored in the exchange -- status stays IN_PROGRESS (LLM interprets)
+        assert updated_item.result.delegations[0].response_content is not None
 
 
 @pytest.mark.unit
