@@ -12,14 +12,29 @@ Nothing is deleted from the repo — the harness profile is a *subset you deploy
 so the full platform stays available for hosted use. ("Author hosted, run
 embedded.")
 
-## Harness profile (Podman / Docker)
+## Quick install (Podman / Docker) — recommended
+
+The installer script generates a `SECRET_KEY`, brings up the stack, waits for
+health, and can run the smoke test. Base profile is **MAS + PostgreSQL, the
+in-process engine — 2 containers** (the default engine is `langgraph`; no
+Temporal required).
 
 ```bash
-# Base: MAS API + PostgreSQL, in-process engine — 2 containers
+./deploy/harness/install.sh up       # generate .env + SECRET_KEY, build, start, health-check
+./deploy/harness/install.sh smoke    # full mock workflow end-to-end
+./deploy/harness/install.sh down     # stop
+```
+
+Configure by editing `deploy/harness/.env` (created from
+[`.env.example`](.env.example) on first run) — durability, auth,
+notifications, triggers, OTel.
+
+## Manual (compose)
+
+```bash
 SECRET_KEY=$(openssl rand -hex 32) \
   podman compose -f deploy/harness/compose.yaml up --build
 
-# Smoke test (health, then a full mock workflow)
 curl http://localhost:8002/api/health/
 python multi-agent/tests/e2e/harness_smoke.py
 
@@ -30,8 +45,8 @@ ENGINE_NAME=temporal REDIS_IP=redis \
 DB_BACKEND=mongo podman compose -f deploy/harness/compose.yaml --profile mongo up            # Mongo instead of Postgres
 ```
 
-Reusing the host product's PostgreSQL instead of the bundled one: point
-`POSTGRES_DSN` at it and drop the `postgres` service — a 1-container install.
+**1-container install:** to reuse the host product's PostgreSQL, point
+`POSTGRES_DSN` at it and drop the `postgres` service — MAS alone.
 
 ## Harness profile (Kubernetes / OpenShift)
 
