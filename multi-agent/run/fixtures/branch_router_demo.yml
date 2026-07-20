@@ -56,7 +56,6 @@ conditions:
     type: router_direct
     config:
       type: router_direct
-      default_target: "mock_agent_1_step"
 
 # ----------------------------
 # Plan Steps
