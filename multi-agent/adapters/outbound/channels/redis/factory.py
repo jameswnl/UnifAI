@@ -34,9 +34,11 @@ class RedisChannelFactory(ChannelFactory):
         stream_ttl: int = 3600,
         block_ms: int = 5000,
         batch_size: int = 50,
+        hitl_response_ttl: int = _HITL_RESPONSE_TTL_S,
     ) -> None:
         self._pool = ConnectionPool.from_url(redis_url, socket_timeout=30)
         self._stream_ttl = stream_ttl
+        self._hitl_response_ttl = hitl_response_ttl
         self._block_ms = block_ms
         self._batch_size = batch_size
         self._monitor: Optional[RedisStreamMonitor] = None
@@ -59,6 +61,7 @@ class RedisChannelFactory(ChannelFactory):
             session_id,
             self._redis(),
             ttl=self._stream_ttl,
+            response_ttl=self._hitl_response_ttl,
         )
 
     def get_input_channel(self, session_id: str) -> "_RedisSubmitProxy":
@@ -70,7 +73,8 @@ class RedisChannelFactory(ChannelFactory):
         avoids the full ``RedisInputCapableChannel.__init__`` which
         resets gate keys and registers the session as active.
         """
-        return _RedisSubmitProxy(session_id, self._redis())
+        return _RedisSubmitProxy(session_id, self._redis(),
+                                 response_ttl=self._hitl_response_ttl)
 
     def create_reader(self, session_id: str) -> SessionChannelReader:
         return RedisSessionChannelReader(
@@ -94,11 +98,13 @@ class _RedisSubmitProxy:
     blocking on — without touching any session-lifecycle state.
     """
 
-    def __init__(self, session_id: str, redis_client: Redis) -> None:
+    def __init__(self, session_id: str, redis_client: Redis,
+                 response_ttl: int = _HITL_RESPONSE_TTL_S) -> None:
         self._session_id = session_id
         self._redis = redis_client
+        self._response_ttl = response_ttl
 
     def submit(self, request_id: str, data: dict) -> None:
         key = f"{_HITL_KEY_PREFIX}{self._session_id}:{request_id}"
         self._redis.lpush(key, json.dumps(data, default=pydantic_encoder))
-        self._redis.expire(key, _HITL_RESPONSE_TTL_S)
+        self._redis.expire(key, self._response_ttl)

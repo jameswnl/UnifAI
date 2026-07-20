@@ -350,12 +350,28 @@ class AppContainer(metaclass=SingletonMeta):
             self.channel_factory = PersistingChannelFactory(
                 self.channel_factory, self.session_event_sink)
 
+        # Durable pending-approval store ([2.2], issue #12)
+        self.pending_approval_store = None
+        if cfg.durable_approvals:
+            if self._use_postgres:
+                from outbound.postgres.approval_store import PgPendingApprovalStore
+                self.pending_approval_store = PgPendingApprovalStore(dsn=cfg.postgres_dsn)
+            else:
+                from outbound.mongo.approval_store import MongoPendingApprovalStore
+                self.pending_approval_store = MongoPendingApprovalStore(
+                    mongodb_ip=cfg.mongodb_ip,
+                    mongodb_port=cfg.mongodb_port,
+                    db_name=cfg.mongo_db,
+                )
+
         from outbound.hitl import ChannelApprovalGateFactory
         self.overrides_store = self._create_overrides_store()
         self.gate_factory = ChannelApprovalGateFactory(
             overrides_store=self.overrides_store,
             audit=self.audit_trail,
             notifier=self.notifier_hub,
+            pending_store=self.pending_approval_store,
+            timeout_seconds=cfg.hitl_timeout_seconds,
         )
 
         foreground_runner = ForegroundSessionRunner(
@@ -475,6 +491,7 @@ class AppContainer(metaclass=SingletonMeta):
                 stream_ttl=cfg.redis_stream_ttl,
                 block_ms=cfg.redis_stream_block_ms,
                 batch_size=cfg.redis_stream_batch_size,
+                hitl_response_ttl=cfg.hitl_response_ttl_seconds,
             )
         from outbound.channels import LocalChannelFactory
         return LocalChannelFactory()
