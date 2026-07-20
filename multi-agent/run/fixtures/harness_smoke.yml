@@ -1,0 +1,46 @@
+description: |
+  Minimal linear mock blueprint used by the headless harness smoke test
+  (tests/e2e/harness_smoke.py). No LLM, no conditions, no external services.
+
+name: |
+  Harness Smoke
+
+llms: [ ]
+
+nodes:
+  - rid: user_input
+    name: user_input
+    type: user_question_node
+    config:
+      type: user_question_node
+
+  - rid: mock_agent
+    name: mock_agent
+    type: mock_agent_node
+    config:
+      type: mock_agent_node
+      echo_message: "Mock Agent smoke reply"
+
+  - rid: final_answer
+    name: final_answer
+    type: final_answer_node
+    config:
+      type: final_answer_node
+
+plan:
+  - uid: input_step
+    node: user_input
+    meta:
+      display_name: User Question
+
+  - uid: agent_step
+    after: input_step
+    node: mock_agent
+    meta:
+      display_name: Mock Agent
+
+  - uid: answer_step
+    after: agent_step
+    node: final_answer
+    meta:
+      display_name: Final Answer

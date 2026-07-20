@@ -21,7 +21,7 @@ import time
 import urllib.error
 import urllib.request
 
-FIXTURE = pathlib.Path(__file__).parents[2] / "run" / "fixtures" / "branch_router_demo.yml"
+FIXTURE = pathlib.Path(__file__).parents[2] / "run" / "fixtures" / "harness_smoke.yml"
 HEADERS = {
     "Content-Type": "application/json",
     "X-Authenticated-User": "harness-e2e",
