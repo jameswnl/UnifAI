@@ -9,7 +9,7 @@ import uuid
 import time
 import random
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional, Callable, Union
 from unittest.mock import Mock, MagicMock
 from dataclasses import dataclass, field
@@ -296,7 +296,7 @@ class PacketFactory:
         """Create an expired packet for testing."""
         packet = PacketFactory.create_task_packet(src_uid, dst_uid)
         # Backdate the timestamp
-        packet.ts = datetime.utcnow() - timedelta(seconds=expired_seconds_ago)
+        packet.ts = datetime.now(timezone.utc) - timedelta(seconds=expired_seconds_ago)
         packet.ttl = timedelta(seconds=30)  # Short TTL to ensure expiration
         return packet
         

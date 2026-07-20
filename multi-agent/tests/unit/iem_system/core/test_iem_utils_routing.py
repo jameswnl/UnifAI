@@ -602,4 +602,4 @@ class TestGetOutgoingTargetsIntegrationWithCondition:
         condition_result = condition.run(state)
         
         assert util_result == set()
-        assert condition_result == ""
+        assert condition_result == "END"

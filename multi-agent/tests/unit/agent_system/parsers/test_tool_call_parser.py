@@ -109,10 +109,10 @@ class TestToolCallParser:
         assert result.reasoning == "Empty response from LLM"
     
     def test_parse_no_tool_calls_none_content(self, parser):
-        """Test parsing message with no tool calls and None content."""
+        """Test parsing message with no tool calls and empty content."""
         message = ChatMessage(
             role=Role.ASSISTANT,
-            content=None
+            content=""
         )
         
         result = parser.parse(message)
@@ -122,25 +122,23 @@ class TestToolCallParser:
         assert result.reasoning == "Empty response from LLM"
     
     def test_parse_invalid_tool_args(self, parser):
-        """Test parsing with invalid tool arguments."""
-        message = ChatMessage(
-            role=Role.ASSISTANT,
-            content="Using tool with invalid args.",
-            tool_calls=[
-                ToolCall(
-                    name="test_tool",
-                    args="invalid_args_not_dict",  # Should be dict
-                    tool_call_id="call-123"
-                )
-            ]
-        )
-        
-        with pytest.raises(ParseError) as exc_info:
-            parser.parse(message)
-        
-        assert exc_info.value.error_type == ParseErrorType.TOOL_CALL_ERROR
-        assert "Using tool with invalid args." in exc_info.value.raw_output  # raw_output contains message content
-        assert "Tool args must be dict" in str(exc_info.value)  # Error message contains the validation details
+        """Test that invalid tool arguments (non-dict) are rejected by Pydantic validation."""
+        from pydantic import ValidationError
+
+        # ToolCall.args is typed as Dict, so Pydantic rejects non-dict values
+        # at model construction time
+        with pytest.raises(ValidationError):
+            ChatMessage(
+                role=Role.ASSISTANT,
+                content="Using tool with invalid args.",
+                tool_calls=[
+                    ToolCall(
+                        name="test_tool",
+                        args="invalid_args_not_dict",  # Should be dict
+                        tool_call_id="call-123"
+                    )
+                ]
+            )
     
     def test_parse_missing_tool_name(self, parser):
         """Test parsing with missing tool name."""

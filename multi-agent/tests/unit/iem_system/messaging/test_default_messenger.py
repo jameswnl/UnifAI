@@ -7,7 +7,7 @@ middleware integration, and error handling.
 
 import pytest
 from unittest.mock import Mock, MagicMock, patch
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 
 from mas.core.iem.messenger import DefaultInterMessenger
@@ -353,7 +353,7 @@ class TestDefaultInterMessenger:
         
         # Create packets with different ages
         old_packet = PacketFactory.create_task_packet(src_uid="sender", dst_uid="receiver")
-        old_packet.ts = datetime.utcnow() - timedelta(hours=2)
+        old_packet.ts = datetime.now(timezone.utc) - timedelta(hours=2)
         
         recent_packet = PacketFactory.create_task_packet(src_uid="sender", dst_uid="receiver")
         

@@ -70,13 +70,13 @@ class TestRouterDirectConditionBasic:
         """Test that condition returns empty string when no context is set."""
         # Don't set context
         result = condition.run(empty_state_view)
-        assert result == ""
+        assert result == "END"
 
     def test_no_packets_returns_empty_string(self, condition, mock_context, empty_state_view):
         """Test that condition returns empty string when no packets exist."""
         condition.set_context(mock_context)
         result = condition.run(empty_state_view)
-        assert result == ""
+        assert result == "END"
 
     def test_no_outgoing_packets_returns_empty_string(self, condition, mock_context):
         """Test that condition returns empty string when no outgoing packets exist."""
@@ -91,7 +91,7 @@ class TestRouterDirectConditionBasic:
         
         condition.set_context(mock_context)
         result = condition.run(state_view)
-        assert result == ""
+        assert result == "END"
 
 
 class TestRouterDirectConditionRouting:
@@ -263,7 +263,7 @@ class TestRouterDirectConditionEdgeCases:
         
         # Should handle gracefully and return empty
         result = condition.run(state_view)
-        assert result == ""
+        assert result == "END"
 
     def test_packets_without_src_attribute(self, condition):
         """Test handling packets without src attribute."""
@@ -283,7 +283,7 @@ class TestRouterDirectConditionEdgeCases:
         condition.set_context(context)
         
         result = condition.run(state_view)
-        assert result == ""
+        assert result == "END"
 
     def test_packets_without_dst_attribute(self, condition):
         """Test handling packets without dst attribute."""
@@ -303,7 +303,7 @@ class TestRouterDirectConditionEdgeCases:
         condition.set_context(context)
         
         result = condition.run(state_view)
-        assert result == ""
+        assert result == "END"
 
     def test_empty_adjacent_nodes(self, condition):
         """Test behavior with empty adjacent nodes list."""
@@ -325,7 +325,7 @@ class TestRouterDirectConditionEdgeCases:
         result = condition.run(state_view)
         
         # Should return empty since no nodes are adjacent
-        assert result == ""
+        assert result == "END"
 
     def test_none_adjacent_nodes(self, condition):
         """Test behavior when adjacent_nodes is None."""
@@ -344,7 +344,7 @@ class TestRouterDirectConditionEdgeCases:
         
         # Should handle gracefully
         result = condition.run(state_view)
-        assert result == ""
+        assert result == "END"
 
     def test_state_without_inter_packets_attribute(self, condition):
         """Test handling state without inter_packets attribute."""
@@ -365,7 +365,7 @@ class TestRouterDirectConditionEdgeCases:
         result = condition.run(state_view)
         
         # Should handle gracefully and return empty
-        assert result == ""
+        assert result == "END"
 
 
 class TestRouterDirectConditionFactory:

@@ -5,7 +5,7 @@ Tests various validation patterns, security checks, and edge cases.
 """
 
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 
 from mas.core.iem.messenger import DefaultInterMessenger
@@ -122,7 +122,7 @@ class RateLimitingMiddleware(MessengerMiddleware):
         self.rate_limit_violations = []
     
     def before_send(self, packet: BaseIEMPacket) -> BaseIEMPacket:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         self.send_timestamps.append(now)
         
         # Clean old timestamps
@@ -138,7 +138,7 @@ class RateLimitingMiddleware(MessengerMiddleware):
         return packet
     
     def after_receive(self, packet: BaseIEMPacket) -> BaseIEMPacket:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         self.receive_timestamps.append(now)
         
         # Clean old timestamps
@@ -301,7 +301,7 @@ class TestMiddlewareValidation:
         
         # Create expired packet
         expired_packet = PacketFactory.create_task_packet("sender", "test_node")
-        expired_packet.ts = datetime.utcnow() - timedelta(hours=2)
+        expired_packet.ts = datetime.now(timezone.utc) - timedelta(hours=2)
         expired_packet.ttl = timedelta(hours=1)  # Expired 1 hour ago
         
         state[Channel.INTER_PACKETS] = [expired_packet]

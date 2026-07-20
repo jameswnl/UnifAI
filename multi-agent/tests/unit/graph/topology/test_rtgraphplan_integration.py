@@ -15,25 +15,55 @@ from mas.core.enums import ResourceCategory
 from mas.session.domain.session_registry import SessionRegistry
 from mas.catalog.element_registry import ElementRegistry
 from mas.blueprints.models.blueprint import StepMeta
+from mas.elements.common.card import ElementCard
+
+
+# ------------------------------------------------------------------ #
+#  Module-level fixtures
+# ------------------------------------------------------------------ #
+
+@pytest.fixture
+def mock_element_registry():
+    """Mock element registry for card building."""
+    registry = Mock(spec=ElementRegistry)
+    mock_spec = Mock()
+    mock_spec.category = ResourceCategory.NODE
+    mock_spec.type_key = "test_type"
+    mock_spec.name = "Test"
+    mock_spec.description = "Test description"
+    mock_spec.capability_names = []
+    from mas.elements.common.card.default import DefaultCardBuilder
+    mock_spec.card_builder_cls = DefaultCardBuilder
+    registry.get_spec.return_value = mock_spec
+    return registry
+
+
+@pytest.fixture(autouse=True)
+def _patch_card_building(monkeypatch):
+    """Patch _build_all_cards to build cards from logical plan steps directly.
+
+    The real _build_all_cards relies on SessionConfigCollector and
+    ElementCardService, which require a fully populated
+    SessionRegistry._store.  For integration tests that focus on topology
+    we short-circuit card building so that every step in the logical plan
+    gets a minimal ElementCard keyed by its rid.
+    """
+
+    def _build_all_cards(self):
+        for step in self._logical_plan.steps:
+            self._cards[step.rid] = ElementCard(
+                uid=step.uid,
+                category=step.category,
+                type_key=step.type_key,
+                name=f"Test {step.uid}",
+                description=f"Test card for {step.uid}",
+            )
+
+    monkeypatch.setattr(RTGraphPlan, '_build_all_cards', _build_all_cards)
 
 
 class TestRTGraphPlanTopologyIntegration:
     """Test integration of topology analysis into RTGraphPlan."""
-    
-    @pytest.fixture
-    def mock_element_registry(self):
-        """Mock element registry for card building."""
-        registry = Mock(spec=ElementRegistry)
-        mock_spec = Mock()
-        mock_spec.category = ResourceCategory.NODE
-        mock_spec.type_key = "test_type"
-        mock_spec.name = "Test"
-        mock_spec.description = "Test description"
-        mock_spec.capability_names = []
-        from mas.elements.common.card.default import DefaultCardBuilder
-        mock_spec.card_builder_cls = DefaultCardBuilder
-        registry.get_spec.return_value = mock_spec
-        return registry
 
     @pytest.fixture
     def mock_session_registry(self):
@@ -536,21 +566,6 @@ class TestRTGraphPlanStepContextInjection:
 
 class TestRTGraphPlanCoreFeatures:
     """Test that RTGraphPlan core features work with new topology system."""
-    
-    @pytest.fixture
-    def mock_element_registry(self):
-        """Mock element registry for card building."""
-        registry = Mock(spec=ElementRegistry)
-        mock_spec = Mock()
-        mock_spec.category = ResourceCategory.NODE
-        mock_spec.type_key = "test_type"
-        mock_spec.name = "Test"
-        mock_spec.description = "Test description"
-        mock_spec.capability_names = []
-        from mas.elements.common.card.default import DefaultCardBuilder
-        mock_spec.card_builder_cls = DefaultCardBuilder
-        registry.get_spec.return_value = mock_spec
-        return registry
 
     def test_existing_functionality_with_topology(self, mock_element_registry):
         """Test that existing RTGraphPlan functionality works with new topology."""

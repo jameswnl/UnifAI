@@ -106,7 +106,7 @@ class TestDelegationFlow(BaseUnitTest):
     """Test delegation status flow for remote work items."""
     
     def test_remote_item_delegation_flow(self):
-        """✅ MEDIUM: Test delegation: PENDING → WAITING → DONE."""
+        """✅ MEDIUM: Test delegation: PENDING → IN_PROGRESS → DONE."""
         item = WorkItem(
             id="remote_1",
             kind=WorkItemKind.REMOTE,
@@ -115,28 +115,26 @@ class TestDelegationFlow(BaseUnitTest):
             assigned_uid="worker1",
             status=WorkItemStatus.PENDING
         )
-        
+
         # Mark as delegated (in progress - remote)
         item.status = WorkItemStatus.IN_PROGRESS
         item.kind = WorkItemKind.REMOTE
-        item.correlation_task_id = "corr_123"
-        
+
         assert item.status == WorkItemStatus.IN_PROGRESS
         assert item.kind == WorkItemKind.REMOTE
-        assert item.correlation_task_id == "corr_123"
-        
+
         # Response received, mark as done
         item.status = WorkItemStatus.DONE
-        item.result_ref = WorkItemResult(
+        item.result = WorkItemResult(
             success=True,
-            content="Work completed by worker1"
+            final_summary="Work completed by worker1"
         )
-        
+
         assert item.status == WorkItemStatus.DONE
-        assert item.result_ref.success is True
+        assert item.result.success is True
     
     def test_remote_item_delegation_failure(self):
-        """✅ MEDIUM: Test delegation failure: PENDING → WAITING → FAILED."""
+        """✅ MEDIUM: Test delegation failure: PENDING → IN_PROGRESS → FAILED."""
         item = WorkItem(
             id="remote_1",
             kind=WorkItemKind.REMOTE,
@@ -145,21 +143,22 @@ class TestDelegationFlow(BaseUnitTest):
             assigned_uid="worker1",
             status=WorkItemStatus.PENDING
         )
-        
+
         # Delegate
         item.status = WorkItemStatus.IN_PROGRESS
         item.kind = WorkItemKind.REMOTE
-        item.correlation_task_id = "corr_123"
-        
+
         # Worker reports failure
         item.status = WorkItemStatus.FAILED
         item.error = "Worker1 could not complete task"
-        
+
         assert item.status == WorkItemStatus.FAILED
         assert item.error is not None
     
     def test_correlation_id_tracking(self):
-        """✅ MEDIUM: Test correlation ID is properly tracked."""
+        """✅ MEDIUM: Test correlation ID is properly tracked via DelegationExchange."""
+        from mas.elements.nodes.common.workload.models.workplan_models import DelegationExchange
+
         item = WorkItem(
             id="remote_1",
             kind=WorkItemKind.REMOTE,
@@ -168,16 +167,19 @@ class TestDelegationFlow(BaseUnitTest):
             assigned_uid="worker1",
             status=WorkItemStatus.PENDING
         )
-        
-        # Should start without correlation ID
-        assert item.correlation_task_id is None
-        
-        # After delegation, should have correlation ID
+
+        # Should start without result/delegations
+        assert item.result is None
+
+        # After delegation, should have a DelegationExchange with task_id for correlation
         item.status = WorkItemStatus.IN_PROGRESS
         item.kind = WorkItemKind.REMOTE
-        item.correlation_task_id = "unique_corr_id_123"
-        
-        assert item.correlation_task_id == "unique_corr_id_123"
+        item.result = WorkItemResult(delegations=[
+            DelegationExchange(sequence=0, task_id="unique_corr_id_123",
+                               query="Do work", delegated_to="worker1")
+        ])
+
+        assert item.result.delegations[0].task_id == "unique_corr_id_123"
 
 
 @pytest.mark.unit
@@ -437,19 +439,19 @@ class TestWorkPlanResultTracking(BaseUnitTest):
             description="Test",
             status=WorkItemStatus.PENDING
         )
-        
+
         # Complete with result
         item.status = WorkItemStatus.DONE
-        item.result_ref = WorkItemResult(
+        item.result = WorkItemResult(
             success=True,
-            content="Task completed successfully",
+            final_summary="Task completed successfully",
             data={"output": "result data"}
         )
-        
-        assert item.result_ref is not None
-        assert item.result_ref.success is True
-        assert item.result_ref.content == "Task completed successfully"
-        assert item.result_ref.data["output"] == "result data"
+
+        assert item.result is not None
+        assert item.result.success is True
+        assert item.result.final_summary == "Task completed successfully"
+        assert item.result.data["output"] == "result data"
     
     def test_work_item_result_on_failure(self):
         """✅ SIMPLE: Test storing result on failure."""
@@ -460,18 +462,18 @@ class TestWorkPlanResultTracking(BaseUnitTest):
             description="Test",
             status=WorkItemStatus.PENDING
         )
-        
+
         # Fail with result
         item.status = WorkItemStatus.FAILED
         item.error = "Task failed"
-        item.result_ref = WorkItemResult(
+        item.result = WorkItemResult(
             success=False,
-            content="Failed to process data",
+            final_summary="Failed to process data",
             data={"error_code": "ERR_001"}
         )
-        
-        assert item.result_ref is not None
-        assert item.result_ref.success is False
+
+        assert item.result is not None
+        assert item.result.success is False
         assert item.error is not None
     
     def test_work_item_result_metadata(self):
@@ -483,21 +485,21 @@ class TestWorkPlanResultTracking(BaseUnitTest):
             description="Test",
             status=WorkItemStatus.PENDING
         )
-        
+
         # Complete with metadata
         item.status = WorkItemStatus.DONE
-        item.result_ref = WorkItemResult(
+        item.result = WorkItemResult(
             success=True,
-            content="Processed 100 records",
+            final_summary="Processed 100 records",
             metadata={
                 "records_processed": 100,
                 "processing_time_ms": 523,
                 "worker_id": "worker1"
             }
         )
-        
-        assert item.result_ref.metadata["records_processed"] == 100
-        assert item.result_ref.metadata["processing_time_ms"] == 523
+
+        assert item.result.metadata["records_processed"] == 100
+        assert item.result.metadata["processing_time_ms"] == 523
 
 
 @pytest.mark.unit
@@ -520,7 +522,7 @@ class TestWorkPlanThreadSafety(BaseUnitTest):
         # Atomic update
         def update_func(item, plan):
             item.status = WorkItemStatus.DONE
-            item.result_ref = WorkItemResult(success=True, content="Updated")
+            item.result = WorkItemResult(success=True, final_summary="Updated")
         
         success = workspace_service.atomic_update_work_item(
             thread.thread_id, "orch1", "local_1", update_func
