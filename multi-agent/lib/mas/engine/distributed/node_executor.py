@@ -72,7 +72,14 @@ class NodeExecutor:
         if bindings is not None:
             self._binder.bind(step.func, bindings)
 
-        return step.func(state, config={})
+        # Per-step retry with failure history ([2.1], issue #11). Temporal's
+        # native activity retries remain for transport-level failures; the
+        # adaptive loop runs inside the activity so each attempt sees the
+        # recorded failure context.
+        from mas.engine.retry import run_node_with_retry
+        meta = step_context.metadata if step_context else None
+        return run_node_with_retry(
+            node_uid, lambda: step.func(state, config={}), state, meta)
 
     def evaluate_condition(
         self,
