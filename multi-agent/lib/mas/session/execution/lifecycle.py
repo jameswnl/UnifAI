@@ -25,12 +25,14 @@ class SessionLifecycle:
     """
 
     def __init__(self, repository: SessionRepository,
-                 audit=None, notifier=None) -> None:
+                 audit=None, notifier=None, telemetry=None) -> None:
         from mas.core.audit import NULL_AUDIT
         from mas.core.notify import NULL_NOTIFIER
+        from mas.core.telemetry import NULL_TELEMETRY
         self._repo = repository
         self._audit = audit or NULL_AUDIT
         self._notifier = notifier or NULL_NOTIFIER
+        self._telemetry = telemetry or NULL_TELEMETRY
 
     def begin(
         self,
@@ -51,6 +53,9 @@ class SessionLifecycle:
         self._repo.save(record)
         self._audit.session_started(record.run_id,
                                     identity=record.identity.id, scope=scope)
+        with self._telemetry.span('session.begin', **{'run_id': record.run_id,
+                'blueprint_id': record.blueprint_id, 'identity': record.identity.id}):
+            self._telemetry.session_started(record.run_id)
 
     def complete(
         self,
@@ -68,6 +73,8 @@ class SessionLifecycle:
         record.status = SessionStatus.COMPLETED
         self._repo.save(record)
         self._audit.session_completed(record.run_id)
+        with self._telemetry.span('session.complete', **{'run_id': record.run_id}):
+            self._telemetry.session_completed(record.run_id)
 
     def fail(
         self,
@@ -84,6 +91,9 @@ class SessionLifecycle:
         record.status = SessionStatus.FAILED
         self._repo.save(record)
         self._audit.session_failed(record.run_id, error=str(error))
+        with self._telemetry.span('session.fail', **{'run_id': record.run_id,
+                'error': str(error)}):
+            self._telemetry.session_failed(record.run_id)
 
     def escalate(
         self,
@@ -123,6 +133,9 @@ class SessionLifecycle:
             error=str(getattr(error, "last", error)),
             attempts=len(attempts),
         )
+        with self._telemetry.span('session.escalate', **{'run_id': record.run_id,
+                'node_uid': node_uid}):
+            self._telemetry.session_escalated(record.run_id)
 
     def cancel(
         self,
