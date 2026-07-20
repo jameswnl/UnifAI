@@ -27,6 +27,10 @@ class AppConfig(SharedConfig):
     # Platform-only API surface (shares, statistics, templates, collaboration,
     # workspace). The harness deployment profile sets PLATFORM_ENDPOINTS=false.
     platform_endpoints: bool = True
+    # Persistence backend: "mongo" (default, full platform) or "postgres"
+    # (harness profile; currently requires PLATFORM_ENDPOINTS=false).
+    db_backend: str = "mongo"
+    postgres_dsn: str = "postgresql://unifai:unifai@localhost:5432/unifai"
     # Engine
     engine_name: str = "temporal"
     temporal_task_queue: str = "graph-engine"

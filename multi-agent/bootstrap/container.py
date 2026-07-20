@@ -86,6 +86,16 @@ class AppContainer(metaclass=SingletonMeta):
         if getattr(self, "_initialized", False):
             return
 
+        # Persistence backend selection ([1.1], issue #7). Postgres currently
+        # covers the harness surface only — shares/templates/statistics stay
+        # mongo-backed, so the platform endpoints must be disabled with it.
+        self._use_postgres = cfg.db_backend == "postgres"
+        if self._use_postgres and cfg.platform_endpoints:
+            raise ValueError(
+                "db_backend=postgres requires PLATFORM_ENDPOINTS=false "
+                "(shares/templates/statistics repositories are mongo-only)"
+            )
+
         self.element_registry = ElementRegistry()
         self.element_registry.auto_discover()
 
@@ -108,13 +118,21 @@ class AppContainer(metaclass=SingletonMeta):
         # ── Auth layer ────────────────────────────────────────────────
 
         http_client = HttpxClient()
-        self.credential_store = MongoCredentialStore(
-            mongodb_ip=cfg.mongodb_ip,
-            mongodb_port=cfg.mongodb_port,
-            db_name=cfg.mongo_db,
-            coll_name=cfg.credentials_coll,
-            encryption_key=cfg.credential_encryption_key,
-        )
+        if self._use_postgres:
+            from outbound.postgres import PgCredentialStore
+            self.credential_store = PgCredentialStore(
+                dsn=cfg.postgres_dsn,
+                table=cfg.credentials_coll,
+                encryption_key=cfg.credential_encryption_key,
+            )
+        else:
+            self.credential_store = MongoCredentialStore(
+                mongodb_ip=cfg.mongodb_ip,
+                mongodb_port=cfg.mongodb_port,
+                db_name=cfg.mongo_db,
+                coll_name=cfg.credentials_coll,
+                encryption_key=cfg.credential_encryption_key,
+            )
 
         redis_url = get_redis_url()
         pending_store = None
@@ -134,12 +152,19 @@ class AppContainer(metaclass=SingletonMeta):
         )
 
         # Server config store
-        self.server_config_store = MongoServerConfigStore(
-            mongodb_ip=cfg.mongodb_ip,
-            mongodb_port=cfg.mongodb_port,
-            db_name=cfg.mongo_db,
-            coll_name=cfg.server_configs_coll,
-        )
+        if self._use_postgres:
+            from outbound.postgres import PgServerConfigStore
+            self.server_config_store = PgServerConfigStore(
+                dsn=cfg.postgres_dsn,
+                table=cfg.server_configs_coll,
+            )
+        else:
+            self.server_config_store = MongoServerConfigStore(
+                mongodb_ip=cfg.mongodb_ip,
+                mongodb_port=cfg.mongodb_port,
+                db_name=cfg.mongo_db,
+                coll_name=cfg.server_configs_coll,
+            )
 
         # OAuth2 state manager
         state_manager = OAuthStateManager(secret=cfg.oauth_state_secret)
@@ -169,17 +194,23 @@ class AppContainer(metaclass=SingletonMeta):
 
         # ── Data repositories ────────────────────────────────────────
 
-        self.blueprint_repo = MongoBlueprintRepository(
-            db_name=cfg.mongo_db,
-            coll_name=cfg.blueprint_coll
-        )
-
-        self.resource_repo = MongoResourceRepository(
-            cfg.mongodb_port,
-            mongodb_ip=cfg.mongodb_ip,
-            db_name=cfg.mongo_db,
-            coll_name=cfg.resources_coll,
-        )
+        if self._use_postgres:
+            from outbound.postgres import PgBlueprintRepository, PgResourceRepository
+            self.blueprint_repo = PgBlueprintRepository(
+                dsn=cfg.postgres_dsn, table=cfg.blueprint_coll)
+            self.resource_repo = PgResourceRepository(
+                dsn=cfg.postgres_dsn, table=cfg.resources_coll)
+        else:
+            self.blueprint_repo = MongoBlueprintRepository(
+                db_name=cfg.mongo_db,
+                coll_name=cfg.blueprint_coll
+            )
+            self.resource_repo = MongoResourceRepository(
+                cfg.mongodb_port,
+                mongodb_ip=cfg.mongodb_ip,
+                db_name=cfg.mongo_db,
+                coll_name=cfg.resources_coll,
+            )
 
         field_cipher = FieldCipher(cfg.credential_encryption_key) if cfg.credential_encryption_key else None
 
@@ -243,12 +274,17 @@ class AppContainer(metaclass=SingletonMeta):
             auth_service=self.auth_service,
             platform_config=self.platform_config,
         )
-        self.session_repo = MongoSessionRepository(
-            mongodb_port=cfg.mongodb_port,
-            mongodb_ip=cfg.mongodb_ip,
-            db_name=cfg.mongo_db,
-            collection_name=cfg.session_coll
-        )
+        if self._use_postgres:
+            from outbound.postgres import PgSessionRepository
+            self.session_repo = PgSessionRepository(
+                dsn=cfg.postgres_dsn, table=cfg.session_coll)
+        else:
+            self.session_repo = MongoSessionRepository(
+                mongodb_port=cfg.mongodb_port,
+                mongodb_ip=cfg.mongodb_ip,
+                db_name=cfg.mongo_db,
+                collection_name=cfg.session_coll
+            )
         self.session_storage_cleaner = LocalSessionStorageCleaner(
             base_path=cfg.shared_storage,
         )
@@ -301,36 +337,43 @@ class AppContainer(metaclass=SingletonMeta):
 
         self.directory_provider = self._build_directory_provider(cfg, self.identity_client)
 
-        self.share_repo = MongoShareRepository(
-            db_name=cfg.mongo_db,
-            coll_name=cfg.shares_coll
-        )
-        self.share_cloner = ShareCloner(
-            resources_registry=resource_registry,
-            blueprint_service=self.blueprint_service,
-            element_registry=self.element_registry
-        )
-        self.share_service = ShareService(
-            share_repository=self.share_repo,
-            cloner=self.share_cloner
-        )
+        # Platform-only repositories/services (mongo-backed, consumed solely by
+        # the endpoint groups that PLATFORM_ENDPOINTS gates off).
+        if cfg.platform_endpoints:
+            self.share_repo = MongoShareRepository(
+                db_name=cfg.mongo_db,
+                coll_name=cfg.shares_coll
+            )
+            self.share_cloner = ShareCloner(
+                resources_registry=resource_registry,
+                blueprint_service=self.blueprint_service,
+                element_registry=self.element_registry
+            )
+            self.share_service = ShareService(
+                share_repository=self.share_repo,
+                cloner=self.share_cloner
+            )
 
-        self.statistics_service = StatisticsService(
-            blueprint_service=self.blueprint_service,
-            session_service=self.session_service,
-            resources_service=self.resources_service
-        )
+            self.statistics_service = StatisticsService(
+                blueprint_service=self.blueprint_service,
+                session_service=self.session_service,
+                resources_service=self.resources_service
+            )
 
-        self.template_repo = MongoTemplateRepository(
-            db_name=cfg.mongo_db,
-            coll_name=cfg.templates_coll
-        )
-        self.template_service = TemplateService(
-            repository=self.template_repo,
-            element_registry=self.element_registry,
-            blueprint_service=self.blueprint_service,
-            resources_service=self.resources_service,
-        )
+            self.template_repo = MongoTemplateRepository(
+                db_name=cfg.mongo_db,
+                coll_name=cfg.templates_coll
+            )
+            self.template_service = TemplateService(
+                repository=self.template_repo,
+                element_registry=self.element_registry,
+                blueprint_service=self.blueprint_service,
+                resources_service=self.resources_service,
+            )
+        else:
+            self.share_repo = self.share_cloner = self.share_service = None
+            self.statistics_service = None
+            self.template_repo = self.template_service = None
 
         self.collaboration_service = self._create_collaboration_service(
             cfg, self.session_repo, self.identity_provider
