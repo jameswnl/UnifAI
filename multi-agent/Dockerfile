@@ -36,9 +36,12 @@ RUN ARCH=$(uname -m) && \
 ARG CERT_URL="https://certs.corp.redhat.com/certs/Current-IT-Root-CAs.pem"
 ARG CERT_NAME="Current-IT-Root-CAs.pem"
 
-# Download and add the certificate to the system trust store
-RUN curl -fSL "$CERT_URL" -o /etc/pki/ca-trust/source/anchors/$CERT_NAME && \
-    update-ca-trust extract
+# Download and add the certificate to the system trust store (optional —
+# only reachable on Red Hat VPN; skip gracefully outside).
+RUN curl -fSL --connect-timeout 5 "$CERT_URL" \
+      -o /etc/pki/ca-trust/source/anchors/$CERT_NAME \
+    && update-ca-trust extract \
+    || echo "WARN: could not fetch $CERT_URL — skipping internal CA trust"
 
 # Ensure the CA bundle is readable by all users
 RUN chmod 644 /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
@@ -86,7 +89,7 @@ ARG OPENSHELL_PROTO_REF="main"
 RUN pip install 'grpcio-tools>=1.68.0' && \
     PROTO_DIR=$(mktemp -d) && \
     SITE_PKG=$(python3 -c "import pathlib,site; p=next(pathlib.Path(site.getsitepackages()[0]).rglob('openshell/_proto')); print(p)") && \
-    for f in datamodel.proto openshell.proto sandbox.proto inference.proto; do \
+    for f in options.proto datamodel.proto openshell.proto sandbox.proto inference.proto; do \
       curl -fsSL "https://raw.githubusercontent.com/NVIDIA/OpenShell/${OPENSHELL_PROTO_REF}/proto/$f" \
         -o "$PROTO_DIR/$f"; \
     done && \
