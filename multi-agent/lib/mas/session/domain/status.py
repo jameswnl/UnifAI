@@ -10,9 +10,11 @@ class SessionStatus(str, Enum):
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
     # Automation gave up after exhausting retries; a human now
-    # owns this run ([2.5], issue #15). Terminal in v1; modeled
-    # as a state so park-and-resume (v2) is an enhancement.
+    # owns this run ([2.5], issue #15).
     ESCALATED = "ESCALATED"
+    # Waiting for human input before continuing ([5.x] park-and-resume).
+    # Non-terminal: transitions back to RUNNING when unparked.
+    PARKED = "PARKED"
     # Shared-session specific busy statuses:
     # LOCKED   – session is reserved / queued for execution by another caller
     # IN_USE   – session is actively being executed by another caller
