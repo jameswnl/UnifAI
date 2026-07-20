@@ -1,26 +1,31 @@
-# Lightspeed harness profile — minimal deployment (plan item [0.1], issue #1).
+# Lightspeed harness profile — minimal deployment (plan items [0.1]+[1.4],
+# issues #1/#10).
 #
-# Base profile: MAS + MongoDB only, in-process (langgraph) engine.
-#   podman compose -f deploy/harness/compose.yaml up
+# Base profile: MAS + PostgreSQL, in-process (langgraph) engine — 2 containers.
+#   SECRET_KEY=$(openssl rand -hex 32) podman compose -f deploy/harness/compose.yaml up
 #
 # Optional scale-out profiles (compose --profile flag):
-#   streaming  → adds Redis (live NDJSON event replay across processes)
-#   temporal   → adds Temporal server + a MAS worker (distributed engine)
-#   podman compose -f deploy/harness/compose.yaml --profile temporal up
+#   streaming  → adds Redis (live NDJSON replay across processes); set REDIS_IP=redis
+#   temporal   → adds Temporal server + a MAS worker (distributed engine);
+#                set ENGINE_NAME=temporal REDIS_IP=redis
+#   mongo      → runs MongoDB instead of Postgres; set DB_BACKEND=mongo
 #
-# NOTE: MongoDB is the interim store; the Postgres foundation (issues #7–#10)
-# replaces it in this profile. The full platform (ui/rag/backend/identity)
-# deploys via helm/ — see deploy/harness/README.md.
+# The full platform (ui/rag/backend/identity + Mongo) deploys via helm/ —
+# see deploy/harness/README.md.
 
 name: unifai-harness
 
 services:
-  mongodb:
-    image: docker.io/library/mongo:8
+  postgres:
+    image: docker.io/library/postgres:16
+    environment:
+      POSTGRES_USER: unifai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-unifai}
+      POSTGRES_DB: unifai
     volumes:
-      - mongo-data:/data/db
+      - pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      test: ["CMD-SHELL", "pg_isready -U unifai"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -35,11 +40,14 @@ services:
       # Required — generate one per install (e.g. `openssl rand -hex 32`)
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in the environment or an .env file}
       PLATFORM_ENDPOINTS: "false"
+      DB_BACKEND: ${DB_BACKEND:-postgres}
+      POSTGRES_DSN: postgresql://unifai:${POSTGRES_PASSWORD:-unifai}@postgres:5432/unifai
       # With --profile temporal, start as: ENGINE_NAME=temporal podman compose ...
       ENGINE_NAME: ${ENGINE_NAME:-langgraph}
+      TEMPORAL_HOST: temporal:7233
       # Redis is opt-in: --profile streaming + REDIS_IP=redis
       REDIS_IP: ${REDIS_IP:-}
-      TEMPORAL_HOST: temporal:7233
+      # Mongo settings only used with --profile mongo + DB_BACKEND=mongo
       MONGODB_IP: mongodb
       MONGODB_PORT: "27017"
       MONGO_DB: UnifAI
@@ -47,7 +55,7 @@ services:
     ports:
       - "8002:8002"
     depends_on:
-      mongodb:
+      postgres:
         condition: service_healthy
 
   redis:
@@ -69,17 +77,25 @@ services:
     image: localhost/unifai-mas:latest
     environment:
       ROLE: temporal-worker
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in the environment or an .env file}
+      PLATFORM_ENDPOINTS: "false"
       ENGINE_NAME: temporal
       TEMPORAL_HOST: temporal:7233
-      MONGODB_IP: mongodb
-      MONGODB_PORT: "27017"
-      MONGO_DB: UnifAI
-      REDIS_URL: redis://redis:6379
+      DB_BACKEND: ${DB_BACKEND:-postgres}
+      POSTGRES_DSN: postgresql://unifai:${POSTGRES_PASSWORD:-unifai}@postgres:5432/unifai
+      REDIS_IP: redis
     depends_on:
       - temporal
       - redis
-      - mongodb
+      - postgres
+
+  mongodb:
+    profiles: [mongo]
+    image: docker.io/library/mongo:8
+    volumes:
+      - mongo-data:/data/db
 
 volumes:
-  mongo-data:
+  pg-data:
   redis-data:
+  mongo-data:

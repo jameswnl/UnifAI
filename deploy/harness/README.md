@@ -15,16 +15,23 @@ embedded.")
 ## Harness profile (Podman / Docker)
 
 ```bash
-# Base: MAS API + MongoDB, in-process engine — 2 containers
-podman compose -f deploy/harness/compose.yaml up --build
+# Base: MAS API + PostgreSQL, in-process engine — 2 containers
+SECRET_KEY=$(openssl rand -hex 32) \
+  podman compose -f deploy/harness/compose.yaml up --build
 
-# Smoke test
-curl http://localhost:8002/api/health
+# Smoke test (health, then a full mock workflow)
+curl http://localhost:8002/api/health/
+python multi-agent/tests/e2e/harness_smoke.py
 
 # Optional scale-out pieces
-podman compose -f deploy/harness/compose.yaml --profile streaming up   # + Redis
-ENGINE_NAME=temporal podman compose -f deploy/harness/compose.yaml --profile temporal up  # + Temporal & worker
+REDIS_IP=redis podman compose -f deploy/harness/compose.yaml --profile streaming up          # + Redis
+ENGINE_NAME=temporal REDIS_IP=redis \
+  podman compose -f deploy/harness/compose.yaml --profile temporal up                        # + Temporal & worker
+DB_BACKEND=mongo podman compose -f deploy/harness/compose.yaml --profile mongo up            # Mongo instead of Postgres
 ```
+
+Reusing the host product's PostgreSQL instead of the bundled one: point
+`POSTGRES_DSN` at it and drop the `postgres` service — a 1-container install.
 
 ## Harness profile (Kubernetes / OpenShift)
 
