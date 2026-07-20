@@ -31,6 +31,9 @@ class AppConfig(SharedConfig):
     # (harness profile; currently requires PLATFORM_ENDPOINTS=false).
     db_backend: str = "mongo"
     postgres_dsn: str = "postgresql://unifai:unifai@localhost:5432/unifai"
+    # Durable transcript: persist every session event to the database
+    # (session_events). Disable only for throwaway dev runs.
+    transcript_persistence: bool = True
     # Engine
     engine_name: str = "temporal"
     temporal_task_queue: str = "graph-engine"

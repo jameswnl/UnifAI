@@ -89,13 +89,24 @@ class ForegroundSessionRunner:
         self._lifecycle.begin(session.record, scope)
         session.execution_holder.context = session.record.run_context
 
+        # Bind a channel even without a streaming consumer so node events
+        # still reach the durable transcript ([1.2], issue #8).
+        run_id = session.get_run_id()
+        channel = self._channel_factory.create(run_id)
+        self._binder.bind_all(
+            session.session_registry,
+            NodeRuntimeBindings(channel=channel),
+        )
+
         try:
             final_state = session.executable_graph.run(
-                session.graph_state, session_id=session.get_run_id(),
+                session.graph_state, session_id=run_id,
             )
         except Exception as e:
             self._lifecycle.fail(session.record, e)
             raise
+        finally:
+            channel.close()
 
         self._lifecycle.complete(session.record, final_state)
         return final_state

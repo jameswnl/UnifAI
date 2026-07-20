@@ -301,6 +301,24 @@ class AppContainer(metaclass=SingletonMeta):
 
         self.channel_factory = self._create_channel_factory(cfg)
 
+        # Durable transcript ([1.2], issue #8): wrap the channel factory so
+        # every emitted event is appended to the session_events store.
+        self.session_event_sink = None
+        if cfg.transcript_persistence:
+            if self._use_postgres:
+                from outbound.postgres.event_store import PgSessionEventStore
+                self.session_event_sink = PgSessionEventStore(dsn=cfg.postgres_dsn)
+            else:
+                from outbound.mongo.event_store import MongoSessionEventStore
+                self.session_event_sink = MongoSessionEventStore(
+                    mongodb_ip=cfg.mongodb_ip,
+                    mongodb_port=cfg.mongodb_port,
+                    db_name=cfg.mongo_db,
+                )
+            from mas.core.channels.persisting import PersistingChannelFactory
+            self.channel_factory = PersistingChannelFactory(
+                self.channel_factory, self.session_event_sink)
+
         from outbound.hitl import ChannelApprovalGateFactory
         self.overrides_store = self._create_overrides_store()
         self.gate_factory = ChannelApprovalGateFactory(

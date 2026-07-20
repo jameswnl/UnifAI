@@ -208,3 +208,21 @@ class TestCredentialStores:
         store.save("u1", ClientConfig(server_identifier=ident, client_id="cid"))
         assert store.find_by_server("u1", ident) is not None
         assert store.find_by_server("u1", "") is None
+
+
+class TestSessionEventStore:
+
+    def test_append_list_count_delete(self):
+        from outbound.postgres.event_store import PgSessionEventStore
+
+        store = PgSessionEventStore(DSN, table="test_session_events")
+        sid = f"s-{uuid.uuid4().hex[:8]}"
+        store.append(sid, {"type": "node_started", "uid": "n1"})
+        store.append(sid, {"type": "node_output", "uid": "n1", "output": "hi"})
+
+        assert store.count(sid) == 2
+        events = store.list_events(sid)
+        assert [e["type"] for e in events] == ["node_started", "node_output"]
+        assert store.list_events(sid, offset=1) == [events[1]]
+        assert store.delete_session(sid) == 2
+        assert store.count(sid) == 0
