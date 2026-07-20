@@ -485,6 +485,10 @@ class AppContainer(metaclass=SingletonMeta):
             cfg, self.session_repo, self.identity_provider
         )
 
+        # Sandbox spawner ([3.1], issue #18): platform abstraction for
+        # ephemeral per-step sandbox containers.
+        self.sandbox_spawner = self._create_sandbox_spawner(cfg)
+
         self._initialized = True
 
     @staticmethod
@@ -580,6 +584,21 @@ class AppContainer(metaclass=SingletonMeta):
         raise ValueError(
             f"Unknown identity_provider_mode: '{mode}'. Supported: pod, dev, noop"
         )
+
+    @staticmethod
+    def _create_sandbox_spawner(cfg: AppConfig):
+        backend = cfg.sandbox_spawner.strip().lower()
+        if backend == "podman":
+            from outbound.sandbox.podman import PodmanSandboxSpawner
+            logger.info("Sandbox spawner: podman (network=%s)", cfg.sandbox_network)
+            return PodmanSandboxSpawner(
+                network=cfg.sandbox_network,
+                max_sandboxes=cfg.sandbox_max_concurrent,
+            )
+        if backend == "k8s":
+            raise ValueError("k8s sandbox spawner not yet implemented")
+        from outbound.sandbox.null import NullSandboxSpawner
+        return NullSandboxSpawner()
 
     @staticmethod
     def _build_directory_provider(cfg: AppConfig, identity_client: IdentityClient):

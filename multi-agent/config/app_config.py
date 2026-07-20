@@ -98,3 +98,11 @@ class AppConfig(SharedConfig):
     identity_provider_mode: str = ""
     credential_encryption_key: str = ""
 
+    # Sandbox spawner ([3.1], issue #18): "none" (disabled), "podman",
+    # or "k8s" (future). Controls whether agent steps can run in
+    # ephemeral containers.
+    sandbox_spawner: str = "none"
+    sandbox_image: str = ""
+    sandbox_network: str = "harness"
+    sandbox_max_concurrent: int = 10
+
