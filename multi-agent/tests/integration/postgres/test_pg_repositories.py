@@ -226,3 +226,20 @@ class TestSessionEventStore:
         assert store.list_events(sid, offset=1) == [events[1]]
         assert store.delete_session(sid) == 2
         assert store.count(sid) == 0
+
+
+class TestLargePayloadStore:
+
+    def test_put_get_delete(self):
+        from outbound.postgres.blob_store import PgLargePayloadStore
+
+        store = PgLargePayloadStore(DSN, table="test_large_payloads")
+        key = f"blob-{uuid.uuid4().hex[:8]}"
+        blob = b"z" * 100_000
+        store.put(key, blob)
+        assert store.get(key) == blob
+        # overwrite
+        store.put(key, b"small")
+        assert store.get(key) == b"small"
+        store.delete(key)
+        assert store.get(key) is None

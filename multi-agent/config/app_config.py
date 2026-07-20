@@ -45,6 +45,10 @@ class AppConfig(SharedConfig):
     # (requires engine_name=langgraph and db_backend=postgres)
     langgraph_checkpointing: bool = False
     resume_on_startup: bool = False
+    # Temporal large-payload offload ([2.4]): stash oversized payloads in
+    # Postgres (claim-check codec) so GraphState can exceed Temporal's ~2MB cap
+    large_payload_offload: bool = False
+    large_payload_threshold_bytes: int = 1_500_000
     temporal_task_queue: str = "graph-engine"
     # Redis streaming tuning
     redis_stream_ttl: int = 3600
