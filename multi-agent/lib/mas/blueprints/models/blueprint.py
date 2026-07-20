@@ -72,6 +72,10 @@ class StepMeta(BaseModel):
     description: str = ""
     display_name: str = ""
     tags: List[str] = []
+    # Per-step retry policy ([2.1], issue #11): attempts = max_retries + 1.
+    # Default 0 — high-risk steps must opt in explicitly.
+    max_retries: int = 0
+    retry_backoff_s: float = 0.0
 
     class Config:
         extra = Extra.forbid

@@ -44,6 +44,13 @@ class GraphState(BaseModel):
         json_schema_extra={'streamable': True}
     )
 
+    # Per-step retry attempt records ([2.1], issue #11). Mutated in place by
+    # the retry loop, so replace-merge is correct for both engines.
+    failure_history: Annotated[List[Dict[str, Any]], lambda old, new: new] = Field(
+        default_factory=list,
+        json_schema_extra={'streamable': False}
+    )
+
     target_branch: Annotated[str, lambda old, new: new] = Field(
         default="",
         json_schema_extra={'streamable': False}

@@ -66,8 +66,10 @@ class BaseGraphBuilder(ABC):
         Default helper: wires up all steps, dependencies, conditionals,
         and identifies entry/exit, then builds.
         """
+        from mas.engine.retry import wrap_step_func
         for step in plan.steps:
-            self.add_node(step.uid, step.func)
+            # Per-step retry with failure history ([2.1], issue #11)
+            self.add_node(step.uid, wrap_step_func(step.uid, step.func))
 
         for step in plan.steps:
             for dep in step.after:
