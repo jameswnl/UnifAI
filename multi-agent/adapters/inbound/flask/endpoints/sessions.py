@@ -280,10 +280,18 @@ def get_session_escalation(session_id):
                        if e.get("type") == "session.escalated"]
         if not escalations:
             return jsonify({"error": "no escalation for this session"}), 404
+        latest = escalations[-1]
+        # Human-readable brief ([4.5], issue #27): template by default, LLM
+        # refined when a summarizer is configured on the container.
+        from mas.session.escalation_summary import EscalationSummarizer
+        summarizer = getattr(current_app.container, "escalation_summarizer", None) \
+            or EscalationSummarizer()
+        summary = summarizer.summarize(latest)
         return jsonify({
             "session_id": session_id,
             "status": record_status,
-            "escalation": escalations[-1],
+            "escalation": latest,
+            "summary": summary,
             "refs": {
                 "transcript": f"/api/sessions/session.events.get?sessionId={session_id}",
                 "audit": f"/api/sessions/session.audit.get?sessionId={session_id}",
