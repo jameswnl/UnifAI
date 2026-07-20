@@ -106,3 +106,59 @@ jobs:
         if: failure()
         working-directory: multi-agent
         run: tail -80 mas-api.log
+
+  # Same headless E2E on the Postgres backend ([1.1], issue #7) plus the
+  # repository contract tests. Proves the harness profile runs Mongo-free.
+  harness-e2e-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: unifai
+          POSTGRES_PASSWORD: unifai
+          POSTGRES_DB: unifai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U unifai" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install harness-profile extras (postgres backend)
+        run: |
+          pip install -e "./global_utils[multi-agent]"
+          # mongo extra = client lib only (container imports it at module
+          # level; no Mongo server runs in this job)
+          pip install -e "./multi-agent[flask,mongo,postgres,langgraph,llms,tools,redis,rag,test]"
+
+      - name: Repository contract tests
+        working-directory: multi-agent
+        env:
+          POSTGRES_DSN: postgresql://unifai:unifai@localhost:5432/unifai
+        run: |
+          python -m pytest tests/integration/postgres -q
+
+      - name: Start MAS API (postgres backend) and run smoke test
+        working-directory: multi-agent
+        env:
+          ENGINE_NAME: langgraph
+          PLATFORM_ENDPOINTS: "false"
+          DB_BACKEND: postgres
+          POSTGRES_DSN: postgresql://unifai:unifai@localhost:5432/unifai
+          SECRET_KEY: harness-e2e-ci-only
+        run: |
+          mas api dev --port 8002 &> mas-api.log &
+          python tests/e2e/harness_smoke.py --url http://localhost:8002
+
+      - name: Server log on failure
+        if: failure()
+        working-directory: multi-agent
+        run: tail -80 mas-api.log
