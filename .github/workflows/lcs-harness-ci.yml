@@ -28,14 +28,40 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install MAS with harness-profile extras
+      - name: Install MAS with all extras
         run: |
-          pip install -e ./global_utils
-          # a2a/tools/claude/temporal are needed until catalog imports are
-          # feature-gated ([0.2]); shrink this list when that lands.
+          pip install -e "./global_utils[multi-agent]"
           pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,a2a,claude,redis,rag,temporal,test]"
 
       - name: Run unit tests (minus quarantine)
         working-directory: multi-agent
         run: |
           python -m pytest tests/unit -q @tests/quarantine-lcs.txt
+
+  # Harness profile: minimal install (no a2a/claude/temporal) must import and
+  # expose only the execution API surface ([0.2], issue #2).
+  harness-minimal-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install harness-profile extras only
+        run: |
+          pip install -e "./global_utils[multi-agent]"
+          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,redis,rag,test]"
+
+      - name: NodeSpec degrades gracefully without optional extras
+        working-directory: multi-agent
+        run: |
+          python -c "from mas.elements.nodes.types import NodeSpec, _node_configs; print(len(_node_configs), 'node configs')"
+
+      - name: Gating + blueprint tests
+        working-directory: multi-agent
+        run: |
+          python -m pytest tests/unit/test_endpoint_gating.py tests/unit/blueprints -q

@@ -32,6 +32,7 @@ services:
     image: localhost/unifai-mas:latest
     environment:
       ROLE: serve
+      PLATFORM_ENDPOINTS: "false"
       # With --profile temporal, start as: ENGINE_NAME=temporal podman compose ...
       ENGINE_NAME: ${ENGINE_NAME:-langgraph}
       TEMPORAL_HOST: temporal:7233

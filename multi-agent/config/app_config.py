@@ -24,6 +24,9 @@ class AppConfig(SharedConfig):
 
     # Storage
     shared_storage: str = "/app/shared"
+    # Platform-only API surface (shares, statistics, templates, collaboration,
+    # workspace). The harness deployment profile sets PLATFORM_ENDPOINTS=false.
+    platform_endpoints: bool = True
     # Engine
     engine_name: str = "temporal"
     temporal_task_queue: str = "graph-engine"
