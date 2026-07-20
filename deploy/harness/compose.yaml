@@ -1,0 +1,80 @@
+# Lightspeed harness profile — minimal deployment (plan item [0.1], issue #1).
+#
+# Base profile: MAS + MongoDB only, in-process (langgraph) engine.
+#   podman compose -f deploy/harness/compose.yaml up
+#
+# Optional scale-out profiles (compose --profile flag):
+#   streaming  → adds Redis (live NDJSON event replay across processes)
+#   temporal   → adds Temporal server + a MAS worker (distributed engine)
+#   podman compose -f deploy/harness/compose.yaml --profile temporal up
+#
+# NOTE: MongoDB is the interim store; the Postgres foundation (issues #7–#10)
+# replaces it in this profile. The full platform (ui/rag/backend/identity)
+# deploys via helm/ — see deploy/harness/README.md.
+
+name: unifai-harness
+
+services:
+  mongodb:
+    image: docker.io/library/mongo:8
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  mas-api:
+    build:
+      context: ../..
+      dockerfile: multi-agent/Dockerfile
+    image: localhost/unifai-mas:latest
+    environment:
+      ROLE: serve
+      # With --profile temporal, start as: ENGINE_NAME=temporal podman compose ...
+      ENGINE_NAME: ${ENGINE_NAME:-langgraph}
+      TEMPORAL_HOST: temporal:7233
+      MONGODB_IP: mongodb
+      MONGODB_PORT: "27017"
+      MONGO_DB: UnifAI
+      PORT: "8002"
+    ports:
+      - "8002:8002"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+
+  redis:
+    profiles: [streaming, temporal]
+    image: docker.io/library/redis:7
+    volumes:
+      - redis-data:/data
+
+  temporal:
+    profiles: [temporal]
+    image: docker.io/temporalio/auto-setup:1.25
+    environment:
+      DB: sqlite
+    ports:
+      - "7233:7233"
+
+  mas-worker:
+    profiles: [temporal]
+    image: localhost/unifai-mas:latest
+    environment:
+      ROLE: temporal-worker
+      ENGINE_NAME: temporal
+      TEMPORAL_HOST: temporal:7233
+      MONGODB_IP: mongodb
+      MONGODB_PORT: "27017"
+      MONGO_DB: UnifAI
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - temporal
+      - redis
+      - mongodb
+
+volumes:
+  mongo-data:
+  redis-data:
