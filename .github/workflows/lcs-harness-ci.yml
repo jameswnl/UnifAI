@@ -164,3 +164,28 @@ jobs:
         if: failure()
         working-directory: multi-agent
         run: tail -80 mas-api.log
+
+  # Temporal workflow determinism / replay guard ([2.7], issue #17). The
+  # worker runs unsandboxed, so replay-correctness of GraphTraversal is on
+  # us; this job runs the workflow on an in-process time-skipping test
+  # server and replays its history. No external Temporal server needed.
+  temporal-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install MAS with temporal extras
+        run: |
+          pip install -e "./global_utils[multi-agent]"
+          pip install -e "./multi-agent[flask,mongo,temporal,langgraph,llms,tools,test]"
+
+      - name: Temporal workflow replay test
+        working-directory: multi-agent
+        run: |
+          python -m pytest tests/integration/temporal -q
