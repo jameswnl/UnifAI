@@ -147,7 +147,7 @@ jobs:
         run: |
           python -m pytest tests/integration/postgres -q
 
-      - name: Start MAS API (postgres backend) and run smoke test
+      - name: Start MAS API (postgres backend, checkpointing on) and run smoke test
         working-directory: multi-agent
         env:
           ENGINE_NAME: langgraph
@@ -156,6 +156,8 @@ jobs:
           POSTGRES_DSN: postgresql://unifai:unifai@localhost:5432/unifai
           REDIS_IP: ""
           SECRET_KEY: harness-e2e-ci-only
+          LANGGRAPH_CHECKPOINTING: "true"
+          RESUME_ON_STARTUP: "true"
         run: |
           mas api dev --port 8002 &> mas-api.log &
           python tests/e2e/harness_smoke.py --url http://localhost:8002

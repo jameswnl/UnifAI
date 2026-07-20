@@ -161,3 +161,12 @@ class SessionRepository(ABC):
     def delete_by_identity(self, identity: Identity) -> int:
         """Delete all sessions owned by *identity*.  Returns the count of deleted documents."""
         ...
+
+    @abstractmethod
+    def list_run_ids_by_status(self, status: str) -> List[str]:
+        """System-wide: all run_ids currently in *status*.
+
+        Used by resume-on-startup ([2.3], issue #13) to find sessions that
+        were mid-execution (RUNNING) when a replica died.
+        """
+        ...

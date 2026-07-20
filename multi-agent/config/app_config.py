@@ -41,6 +41,10 @@ class AppConfig(SharedConfig):
     notify_slack_webhook_url: str = ""
     # Engine
     engine_name: str = "temporal"
+    # LangGraph durability ([2.3]): Postgres checkpointer + resume-on-startup
+    # (requires engine_name=langgraph and db_backend=postgres)
+    langgraph_checkpointing: bool = False
+    resume_on_startup: bool = False
     temporal_task_queue: str = "graph-engine"
     # Redis streaming tuning
     redis_stream_ttl: int = 3600

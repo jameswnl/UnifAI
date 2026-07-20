@@ -51,6 +51,17 @@ def _build_container():
     return AppContainer(cfg), cfg
 
 
+def _maybe_resume(container, cfg) -> None:
+    """Kick off resume-on-startup ([2.3], issue #13) for API processes."""
+    import os
+    # Flask debug reloader spawns a child; only resume in the reloaded
+    # worker process to avoid a double scan.
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "false":
+        return
+    if getattr(cfg, "resume_on_startup", False):
+        container.resume_service.resume_all_async()
+
+
 # ── API: dev ─────────────────────────────────────────────────────
 
 @api_app.command()
@@ -64,6 +75,7 @@ def dev(
     from inbound.flask.flask_app import create_app
 
     flask_app = create_app(container, config=cfg)
+    _maybe_resume(container, cfg)
     bind_host = host or cfg.hostname
     bind_port = port or int(cfg.port)
     flask_app.run(host=bind_host, port=bind_port, debug=True)

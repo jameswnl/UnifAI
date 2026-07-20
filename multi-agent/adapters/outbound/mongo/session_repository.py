@@ -142,6 +142,13 @@ class MongoSessionRepository(SessionRepository):
         result = self._col.delete_many(identity_q(identity))
         return result.deleted_count
 
+    def list_run_ids_by_status(self, status: str) -> List[str]:
+        cursor = self._col.find(
+            {self._STATUS_FIELD: status},
+            {self._RUN_ID_FIELD: 1, "_id": 0},
+        )
+        return [d[self._RUN_ID_FIELD] for d in cursor]
+
     # ---------- Owner-scoped Statistics ----------
 
     def count(self, identity: Identity, filter: Dict[str, Any]) -> int:

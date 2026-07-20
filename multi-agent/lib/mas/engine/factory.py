@@ -23,8 +23,12 @@ class GraphBuilderFactory:
         "temporal": ("outbound.temporal.builder", "TemporalGraphBuilder"),
     }
 
-    def __init__(self, state_cls: Type[GraphState]) -> None:
+    def __init__(self, state_cls: Type[GraphState],
+                 checkpointer: object = None) -> None:
         self._state_cls = state_cls
+        # LangGraph durability ([2.3], issue #13): passed to builders that
+        # accept it; engines that don't checkpoint (Temporal) ignore it.
+        self._checkpointer = checkpointer
         self._registry: Dict[str, Tuple[str, str]] = dict(self._BUILT_IN_BUILDERS)
 
     def register(self, key: str, module_path: str, class_name: str) -> None:
@@ -37,10 +41,13 @@ class GraphBuilderFactory:
         module_path, class_name = self._registry[key]
 
         import importlib
+        import inspect
         module = importlib.import_module(module_path)
         builder_cls = getattr(module, class_name)
 
         if not issubclass(builder_cls, BaseGraphBuilder):
             raise TypeError(f"{builder_cls} must inherit from BaseGraphBuilder")
 
+        if "checkpointer" in inspect.signature(builder_cls.__init__).parameters:
+            return builder_cls(self._state_cls, checkpointer=self._checkpointer)
         return builder_cls(self._state_cls)
