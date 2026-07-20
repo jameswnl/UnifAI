@@ -97,6 +97,7 @@ jobs:
           MONGODB_IP: localhost
           MONGODB_PORT: "27017"
           MONGO_DB: UnifAI
+          SECRET_KEY: harness-e2e-ci-only
         run: |
           mas api dev --port 8002 &> mas-api.log &
           python tests/e2e/harness_smoke.py --url http://localhost:8002
