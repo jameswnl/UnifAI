@@ -9,6 +9,7 @@ from inbound.flask.endpoints.graph_validation import graph_validation_bp
 from inbound.flask.endpoints.actions import actions_bp
 from inbound.flask.endpoints.health import health_bp
 from inbound.flask.endpoints.credentials import credentials_bp
+from inbound.flask.endpoints.triggers import triggers_bp
 
 
 def register_all_endpoints(app, platform_endpoints: bool | None = None):
@@ -33,6 +34,7 @@ def register_all_endpoints(app, platform_endpoints: bool | None = None):
         {"bp": graph_validation_bp, "parent": 'graph', "route": 'validation'},
         {"bp": actions_bp, "parent": 'actions', "route": ''},
         {"bp": credentials_bp, "parent": 'credentials', "route": ''},
+        {"bp": triggers_bp, "parent": 'triggers', "route": ''},
     ]
 
     if platform_endpoints:

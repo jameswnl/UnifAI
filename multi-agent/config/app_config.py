@@ -44,6 +44,11 @@ class AppConfig(SharedConfig):
     durable_approvals: bool = True
     hitl_timeout_seconds: float = 86400.0
     hitl_response_ttl_seconds: int = 86400
+    # Triggers ([4.1], issue #23)
+    triggers_enabled: bool = True
+    trigger_webhook_token: str = ""      # empty = open (dev); set to require header
+    scheduler_enabled: bool = False
+    scheduler_poll_seconds: int = 30
     # Engine
     engine_name: str = "temporal"
     # LangGraph durability ([2.3]): Postgres checkpointer + resume-on-startup

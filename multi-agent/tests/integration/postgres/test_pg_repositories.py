@@ -270,3 +270,26 @@ class TestPendingApprovalStore:
 
         # resolving a missing approval returns False
         assert store.resolve(sid, "nope", decision="approve") is False
+
+
+class TestScheduleStore:
+
+    def test_save_list_get_delete(self):
+        from outbound.postgres.schedule_store import PgScheduleStore
+        from mas.triggers.schedule import Schedule
+
+        store = PgScheduleStore(DSN, table="test_schedules")
+        sched = Schedule(blueprint_id=f"bp-{uuid.uuid4().hex[:8]}",
+                         interval_seconds=300, inputs={"k": "v"})
+        store.save(sched)
+
+        got = store.get(sched.schedule_id)
+        assert got is not None
+        assert got.blueprint_id == sched.blueprint_id
+        assert got.interval_seconds == 300
+        assert got.inputs == {"k": "v"}
+
+        assert any(s.schedule_id == sched.schedule_id for s in store.list_all())
+        assert store.delete(sched.schedule_id) is True
+        assert store.get(sched.schedule_id) is None
+        assert store.delete(sched.schedule_id) is False

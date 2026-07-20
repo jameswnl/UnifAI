@@ -400,6 +400,29 @@ class AppContainer(metaclass=SingletonMeta):
             background_engine=background_engine,
         )
 
+        # Triggers ([4.1], issue #23): webhook + schedule-driven launches.
+        self.trigger_service = None
+        self.schedule_store = None
+        self.scheduler = None
+        if cfg.triggers_enabled:
+            from mas.triggers.service import TriggerService
+            self.trigger_service = TriggerService(self.session_service)
+            if cfg.scheduler_enabled:
+                if self._use_postgres:
+                    from outbound.postgres.schedule_store import PgScheduleStore
+                    self.schedule_store = PgScheduleStore(dsn=cfg.postgres_dsn)
+                else:
+                    from outbound.mongo.schedule_store import MongoScheduleStore
+                    self.schedule_store = MongoScheduleStore(
+                        mongodb_ip=cfg.mongodb_ip,
+                        mongodb_port=cfg.mongodb_port,
+                        db_name=cfg.mongo_db,
+                    )
+                from mas.triggers.scheduler import Scheduler
+                self.scheduler = Scheduler(
+                    self.schedule_store, self.trigger_service,
+                    poll_seconds=cfg.scheduler_poll_seconds)
+
         self.redis_kv_store = RedisKVStore(build_redis_client())
         self.team_membership_cache = TeamMembershipCache(self.redis_kv_store)
 

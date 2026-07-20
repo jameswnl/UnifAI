@@ -31,7 +31,7 @@ jobs:
       - name: Install MAS with all extras
         run: |
           pip install -e "./global_utils[multi-agent]"
-          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,a2a,claude,redis,rag,temporal,test]"
+          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,a2a,claude,redis,rag,temporal,triggers,test]"
 
       - name: Run unit tests (minus quarantine)
         working-directory: multi-agent
@@ -54,7 +54,7 @@ jobs:
       - name: Install harness-profile extras only
         run: |
           pip install -e "./global_utils[multi-agent]"
-          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,redis,rag,test]"
+          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,redis,rag,triggers,test]"
 
       - name: NodeSpec degrades gracefully without optional extras
         working-directory: multi-agent
@@ -87,7 +87,7 @@ jobs:
       - name: Install harness-profile extras only
         run: |
           pip install -e "./global_utils[multi-agent]"
-          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,redis,rag,test]"
+          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,redis,rag,triggers,test]"
 
       - name: Start MAS API (harness profile) and run smoke test
         working-directory: multi-agent
@@ -138,7 +138,7 @@ jobs:
           pip install -e "./global_utils[multi-agent]"
           # mongo extra = client lib only (container imports it at module
           # level; no Mongo server runs in this job)
-          pip install -e "./multi-agent[flask,mongo,postgres,langgraph,llms,tools,redis,rag,test]"
+          pip install -e "./multi-agent[flask,mongo,postgres,langgraph,llms,tools,redis,rag,triggers,test]"
 
       - name: Repository contract tests
         working-directory: multi-agent
