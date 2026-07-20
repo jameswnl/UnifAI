@@ -37,12 +37,18 @@ class ChannelApprovalGateFactory(ApprovalGateFactory):
     """
 
     def __init__(self, overrides_store: OverridesStore, audit=None,
-                 notifier=None) -> None:
+                 notifier=None, pending_store=None,
+                 timeout_seconds: float = 300.0) -> None:
         from mas.core.audit import NULL_AUDIT
         from mas.core.notify import NULL_NOTIFIER
         self._overrides_store = overrides_store
         self._audit = audit or NULL_AUDIT
         self._notifier = notifier or NULL_NOTIFIER
+        # Durable approvals + configurable wait ([2.2], issue #12): replaces
+        # the hard-coded 300s HITLConfig default so multi-day waits are
+        # possible (bounded only by this configurable timeout).
+        self._pending_store = pending_store
+        self._timeout_seconds = timeout_seconds
 
     @property
     def overrides_store(self) -> OverridesStore:
@@ -57,10 +63,11 @@ class ChannelApprovalGateFactory(ApprovalGateFactory):
         if not isinstance(channel, InputCapableChannel):
             return None, None
 
-        config = HITLConfig(enabled=True)
+        config = HITLConfig(enabled=True, timeout_seconds=self._timeout_seconds)
         inner_gate = ChannelApprovalGate(channel=channel, config=config,
                                          audit=self._audit,
-                                         notifier=self._notifier)
+                                         notifier=self._notifier,
+                                         pending_store=self._pending_store)
 
         raw_overrides = getattr(session_metadata, "hitl_overrides", None) or {}
         overrides = ApprovalOverrides.from_dict(raw_overrides)

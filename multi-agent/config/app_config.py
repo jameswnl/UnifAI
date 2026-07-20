@@ -39,6 +39,11 @@ class AppConfig(SharedConfig):
     # Notifier targets ([2.6]): empty = disabled
     notify_webhook_url: str = ""
     notify_slack_webhook_url: str = ""
+    # Durable HITL ([2.2], issue #12): persist pending approvals and allow
+    # long waits. Default 24h replaces the old hard 300s cap.
+    durable_approvals: bool = True
+    hitl_timeout_seconds: float = 86400.0
+    hitl_response_ttl_seconds: int = 86400
     # Engine
     engine_name: str = "temporal"
     # LangGraph durability ([2.3]): Postgres checkpointer + resume-on-startup

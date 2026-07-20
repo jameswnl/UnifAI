@@ -34,6 +34,7 @@ class ChannelApprovalGate(ApprovalGate):
         config: HITLConfig,
         audit=None,
         notifier=None,
+        pending_store=None,
     ) -> None:
         from mas.core.audit import NULL_AUDIT
         from mas.core.notify import NULL_NOTIFIER
@@ -41,6 +42,8 @@ class ChannelApprovalGate(ApprovalGate):
         self._channel = channel
         self._audit = audit or NULL_AUDIT
         self._notifier = notifier or NULL_NOTIFIER
+        # Durable pending-approval record ([2.2], issue #12)
+        self._pending = pending_store
 
     def _send_and_wait(
         self,
@@ -86,6 +89,8 @@ class ChannelApprovalGate(ApprovalGate):
             channel_sid, request_id=request.request_id,
             tool_name=request.tool_name, node_uid=request.origin.node_uid,
             reasoning=request.reasoning or "")
+        self._persist_pending(channel_sid, request)
+
         raw = self._channel.wait_for(request.request_id, timeout=timeout)
         if raw is None:
             logger.info(
@@ -96,6 +101,8 @@ class ChannelApprovalGate(ApprovalGate):
             self._audit.approval_resolved(
                 channel_sid, request_id=request.request_id,
                 decision=self._config.timeout_decision.value, source="timeout")
+            self._resolve_pending(channel_sid, request.request_id,
+                                  self._config.timeout_decision.value, "timeout")
             return None
 
         decision = raw.get("decision", "reject")
@@ -109,9 +116,40 @@ class ChannelApprovalGate(ApprovalGate):
         self._audit.approval_resolved(
             channel_sid, request_id=request.request_id,
             decision=decision, source="human")
+        self._resolve_pending(channel_sid, request.request_id, decision, "human")
         return ApprovalResponse(
             request_id=request.request_id,
             decision=ApprovalDecision(decision),
             feedback=raw.get("feedback", ""),
             modified_args=raw.get("modified_args", {}),
         )
+
+    # ── durable pending-approval record ([2.2], issue #12) ───────────
+
+    def _persist_pending(self, session_id: str, request: ApprovalRequest) -> None:
+        if self._pending is None:
+            return
+        try:
+            from mas.core.hitl.pending_store import PendingApproval
+            self._pending.create(PendingApproval(
+                request_id=request.request_id,
+                session_id=session_id,
+                tool_name=request.tool_name,
+                node_uid=request.origin.node_uid,
+                reasoning=request.reasoning or "",
+                payload={"tool_args": request.tool_args,
+                         "tool_description": request.tool_description},
+            ))
+        except Exception:  # noqa: BLE001 — durability is best-effort
+            logger.exception("failed to persist pending approval %s",
+                             request.request_id)
+
+    def _resolve_pending(self, session_id: str, request_id: str,
+                         decision: str, source: str) -> None:
+        if self._pending is None:
+            return
+        try:
+            self._pending.resolve(session_id, request_id,
+                                  decision=decision, resolved_by=source)
+        except Exception:  # noqa: BLE001 — durability is best-effort
+            logger.exception("failed to resolve pending approval %s", request_id)

@@ -46,9 +46,11 @@ class RedisInputCapableChannel(InputCapableChannel):
         session_id: str,
         redis_client: Redis,
         ttl: int = 3600,
+        response_ttl: int = _HITL_RESPONSE_TTL_S,
     ) -> None:
         self._session_id = session_id
         self._redis = redis_client
+        self._response_ttl = response_ttl
         self._stream_key = f"{STREAM_PREFIX}{session_id}"
         self._gate_key = f"{CANCEL_GATE_PREFIX}{session_id}"
         self._ttl = ttl
@@ -114,7 +116,7 @@ class RedisInputCapableChannel(InputCapableChannel):
     def submit(self, request_id: str, data: dict) -> None:
         key = self._hitl_key(request_id)
         self._redis.lpush(key, json.dumps(data, default=pydantic_encoder))
-        self._redis.expire(key, _HITL_RESPONSE_TTL_S)
+        self._redis.expire(key, self._response_ttl)
 
     # -- Internal -----------------------------------------------------------
 

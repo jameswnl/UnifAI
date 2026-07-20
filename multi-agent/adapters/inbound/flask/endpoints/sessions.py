@@ -414,12 +414,29 @@ def submit_approval(identity, session_id, request_id, decision, feedback, modifi
             "error": f"Invalid decision '{decision}'. Must be one of: {', '.join(sorted(valid_decisions))}",
         }), 400
 
+    # Durable record ([2.2], issue #12): persist the decision even if the
+    # waiting process restarted (no live channel). The pending store is the
+    # system-of-record; the live channel delivers the in-process unblock.
+    pending = getattr(current_app.container, "pending_approval_store", None)
+    if pending is not None:
+        try:
+            pending.resolve(session_id, request_id, decision=decision,
+                            resolved_by="human")
+        except Exception:  # noqa: BLE001
+            pass
+
     factory = current_app.container.channel_factory
     channel = factory.get_input_channel(session_id)
     if channel is None:
+        # No live gate (e.g. process restarted). The decision is persisted;
+        # resume-on-startup / the poller will re-drive the session.
         return jsonify({
-            "error": f"No active HITL channel for session {session_id}",
-        }), 404
+            "status": "recorded",
+            "sessionId": session_id,
+            "requestId": request_id,
+            "decision": decision,
+            "note": "no active HITL channel; decision persisted for resume",
+        }), 202
 
     channel.submit(request_id, {
         "decision": decision,
@@ -432,6 +449,25 @@ def submit_approval(identity, session_id, request_id, decision, feedback, modifi
         "requestId": request_id,
         "decision": decision,
     }), 200
+
+
+@sessions_bp.route("/session.approvals.get", methods=["GET"])
+@from_query({
+    "session_id": fields.Str(data_key="sessionId", required=True),
+})
+def get_pending_approvals(session_id):
+    """Durable HITL ([2.2], issue #12): list approvals awaiting a human.
+
+    Survives process restarts (unlike the old TTL-bound Redis gate keys)."""
+    from dataclasses import asdict
+    pending = getattr(current_app.container, "pending_approval_store", None)
+    if pending is None:
+        return jsonify({"error": "durable approvals are disabled"}), 501
+    try:
+        items = [asdict(a) for a in pending.list_pending(session_id)]
+        return jsonify({"session_id": session_id, "pending": items}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @sessions_bp.route("/session.approval.rule", methods=["POST"])

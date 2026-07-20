@@ -243,3 +243,30 @@ class TestLargePayloadStore:
         assert store.get(key) == b"small"
         store.delete(key)
         assert store.get(key) is None
+
+
+class TestPendingApprovalStore:
+
+    def test_create_list_resolve(self):
+        from outbound.postgres.approval_store import PgPendingApprovalStore
+        from mas.core.hitl.pending_store import PendingApproval
+
+        store = PgPendingApprovalStore(DSN, table="test_pending_approvals")
+        sid = f"s-{uuid.uuid4().hex[:8]}"
+        store.create(PendingApproval(request_id="r1", session_id=sid,
+                                     tool_name="ssh_exec", node_uid="n1",
+                                     reasoning="need it"))
+
+        pending = store.list_pending(sid)
+        assert len(pending) == 1
+        assert pending[0].tool_name == "ssh_exec"
+        assert pending[0].status == "pending"
+
+        assert store.resolve(sid, "r1", decision="approve", resolved_by="alice")
+        assert store.list_pending(sid) == []
+        rec = store.get(sid, "r1")
+        assert rec.status == "resolved" and rec.decision == "approve"
+        assert rec.resolved_by == "alice" and rec.resolved_at
+
+        # resolving a missing approval returns False
+        assert store.resolve(sid, "nope", decision="approve") is False
