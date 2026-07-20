@@ -137,6 +137,58 @@ class SessionLifecycle:
                 'node_uid': node_uid}):
             self._telemetry.session_escalated(record.run_id)
 
+    def park(
+        self,
+        record: SessionRecord,
+        *,
+        node_uid: str = "",
+        reason: str = "",
+    ) -> None:
+        """Park a running session to wait for human input ([5.x]).
+
+        The session is NOT finished — graph state and checkpoints are
+        preserved so it can resume from where it stopped.
+        """
+        if record.status == SessionStatus.CANCELLED:
+            return
+        record.status = SessionStatus.PARKED
+        record.metadata.status_message = (
+            f"Parked at step '{node_uid}': {reason or 'awaiting human input'}"
+        )
+        self._repo.save(record)
+        self._audit.record(
+            record.run_id, "session.parked",
+            node_uid=node_uid, reason=reason,
+        )
+        self._notifier.session_escalated(
+            record.run_id,
+            node_uid=node_uid,
+            reason=f"parked: {reason or 'awaiting input'}",
+            error="",
+            attempts=0,
+        )
+        self._telemetry.session_escalated(record.run_id)
+
+    def unpark(
+        self,
+        record: SessionRecord,
+        *,
+        context: dict | None = None,
+    ) -> None:
+        """Resume a parked session ([5.x]).
+
+        Transitions PARKED → RUNNING. Optional context is injected into
+        the session metadata for the resumed step to consume.
+        """
+        if record.status != SessionStatus.PARKED:
+            return
+        if context:
+            record.metadata.tags["unpark_context"] = str(context)
+        record.status = SessionStatus.RUNNING
+        record.metadata.status_message = ""
+        self._repo.save(record)
+        self._audit.record(record.run_id, "session.unparked")
+
     def cancel(
         self,
         record: SessionRecord,
