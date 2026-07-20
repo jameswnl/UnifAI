@@ -3,6 +3,19 @@
 **Date:** 2026-07-20
 **Companion doc:** [stripdown-analysis.md](stripdown-analysis.md) — all rationale lives there; this doc is sequencing, priorities, and scope cuts. Build-item numbers (#1–#15) refer to the analysis doc §9.
 
+## Status (prototype on the `lcs-main` fork line)
+
+**Complete — M0, M1, M2, M4** (all P0 work + the product-integration surface). Delivered across PRs #29–#49, each gated by a 5-job CI lane (unit · minimal-install · headless-e2e mongo · headless-e2e postgres · temporal-replay):
+
+- **M0** — profiles-not-deletion, feature-gating, headless E2E, PoC spike, CI lane
+- **M1** — Postgres repositories, durable transcript, audit trail, Postgres-default compose
+- **M2** — app-level retry w/ failure history, LangGraph Postgres checkpointer + resume-on-startup, state-by-reference (Temporal claim-check codec), escalation v1 (`ESCALATED` + package), notifier port (Slack/webhook), Temporal replay determinism test, durable HITL (DB-persisted approvals, configurable long waits)
+- **M4** — triggers (alert webhook + cron/interval scheduler), thin auth (bearer + K8s TokenReview, pluggable RBAC), OTel (session spans + metrics), escalation LLM summary, Podman installer + langgraph-default flip
+
+**Remaining — M3 (ephemeral sandbox execution, #18–#22).** Highest import-vs-build variance; per the [PoC spike](poc-maturity-spike.md) mostly *importable* from `lightspeed-cloud-agents` (spawner, sandbox image, TLS, security). Needs the published `lightspeed-agentic-sandbox` image + real Podman/K8s to verify end-to-end, so it's a distinct chunk of work best started against that infra. Deferred backlog (#28, park-and-resume / agents-as-tools / cross-workflow memory) and the quarantine burn-down (#3) remain open.
+
+Every P0 requirement from both source docs is met on the harness profile; M3 is the sandboxed-execution model (doc 2 R4/R7/R8).
+
 **Prioritization principles:**
 
 1. **Persistence first.** Nearly every requirement (transcripts, audit, escalation, checkpoints, durable HITL) writes to the database — the Postgres foundation unblocks everything and is the reason nothing else can ship first.
