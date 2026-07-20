@@ -32,6 +32,8 @@ services:
     image: localhost/unifai-mas:latest
     environment:
       ROLE: serve
+      # Required — generate one per install (e.g. `openssl rand -hex 32`)
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in the environment or an .env file}
       PLATFORM_ENDPOINTS: "false"
       # With --profile temporal, start as: ENGINE_NAME=temporal podman compose ...
       ENGINE_NAME: ${ENGINE_NAME:-langgraph}

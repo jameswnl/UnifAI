@@ -1,1 +1,1 @@
-# from .spec import BranchChooserNodeElementSpec
+from .spec import BranchChooserNodeElementSpec
