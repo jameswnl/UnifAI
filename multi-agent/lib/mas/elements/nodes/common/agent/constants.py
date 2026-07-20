@@ -447,27 +447,27 @@ class ToolNames:
     """Standard tool names to avoid hardcoded strings."""
     
     # WorkPlan tools
-    WORKPLAN_CREATE_OR_UPDATE = "workplan.create_or_update"
-    WORKPLAN_ASSIGN = "workplan.assign"
-    WORKPLAN_MARK = "workplan.mark"
-    WORKPLAN_RECORD_EXECUTION = "workplan.record_execution"
-    WORKPLAN_INGEST_RESULTS = "workplan.ingest_results"
-    WORKPLAN_IS_COMPLETE = "workplan.is_complete"
-    WORKPLAN_SUMMARIZE = "workplan.summarize"
-    
+    WORKPLAN_CREATE_OR_UPDATE = "workplan_create_or_update"
+    WORKPLAN_ASSIGN = "workplan_assign"
+    WORKPLAN_MARK = "workplan_mark"
+    WORKPLAN_RECORD_EXECUTION = "workplan_record_execution"
+    WORKPLAN_INGEST_RESULTS = "workplan_ingest_results"
+    WORKPLAN_IS_COMPLETE = "workplan_is_complete"
+    WORKPLAN_SUMMARIZE = "workplan_summarize"
+
     # Topology tools
-    TOPOLOGY_LIST_ADJACENT = "topology.list_adjacent"
-    TOPOLOGY_GET_NODE_CARD = "topology.get_node_card"
-    
+    TOPOLOGY_LIST_ADJACENT = "topology_list_adjacent"
+    TOPOLOGY_GET_NODE_CARD = "topology_get_node_card"
+
     # IEM/Delegation tools
-    IEM_DELEGATE_TASK = "iem.delegate_task"
-    DELEGATE_TASK = "delegate_task"  # Alternative name
-    
+    IEM_DELEGATE_TASK = "iem_delegate_task"
+    DELEGATE_TASK = "delegate_task"
+
     # Workspace tools
-    WORKSPACE_READ_SUMMARY = "workspace.read_summary"
-    
+    WORKSPACE_READ_SUMMARY = "workspace_read_summary"
+
     # Time tools
-    TIME_GET_CURRENT = "time.get_current_time"
+    TIME_GET_CURRENT = "time_get_current_time"
 
     # Web tools
     WEB_FETCH = "web_fetch"

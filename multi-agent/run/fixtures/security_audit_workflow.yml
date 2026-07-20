@@ -1,0 +1,79 @@
+name: "Security Audit"
+description: |
+  Two-agent security workflow: auditor scans for violations,
+  then a remediation agent proposes fixes for each finding.
+
+llms:
+  - rid: llm
+    name: openai
+    type: openai
+    config:
+      type: openai
+      model_name: gpt-4o-mini
+      base_url: https://api.openai.com/v1
+
+nodes:
+  - rid: user_input
+    name: User Question
+    type: user_question_node
+    config:
+      type: user_question_node
+
+  - rid: auditor
+    name: Security Auditor
+    type: custom_agent_node
+    config:
+      type: custom_agent_node
+      llm: llm
+      system_message: |
+        You are a Kubernetes security auditor. Based on the namespace
+        or cluster description provided, check for common violations:
+        - Pods running as root
+        - Missing network policies
+        - Exposed secrets in environment variables
+        - Missing resource limits
+        - Privileged containers
+        Report each finding with severity and the affected resource.
+
+  - rid: remediator
+    name: Security Remediator
+    type: custom_agent_node
+    config:
+      type: custom_agent_node
+      llm: llm
+      system_message: |
+        You are a security remediation specialist. For each violation
+        found by the auditor, provide the exact YAML patch or kubectl
+        command to fix it. Prioritize by severity.
+
+  - rid: final
+    name: Final Answer
+    type: final_answer_node
+    config:
+      type: final_answer_node
+
+plan:
+  - uid: input
+    node: user_input
+    meta:
+      display_name: Audit Target
+
+  - uid: audit
+    after: input
+    node: auditor
+    meta:
+      display_name: Security Scan
+      description: Scan for security violations
+
+  - uid: remediate
+    after: audit
+    node: remediator
+    meta:
+      display_name: Remediation Plan
+      description: Generate fixes for each violation
+
+  - uid: answer
+    after: remediate
+    node: final
+    meta:
+      display_name: Security Report
