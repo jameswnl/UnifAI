@@ -83,6 +83,38 @@ class SessionLifecycle:
         self._repo.save(record)
         self._audit.session_failed(record.run_id, error=str(error))
 
+    def escalate(
+        self,
+        record: SessionRecord,
+        error: Exception,
+    ) -> None:
+        """
+        Retries exhausted ([2.5], issue #15): mark ESCALATED — a human now
+        owns this run. The escalation package is an audit record referencing
+        data already persisted (transcript, failure_history, attempts).
+        No-op if the session is already CANCELLED.
+        """
+        if record.status == SessionStatus.CANCELLED:
+            return
+        attempts = list(getattr(error, "attempts", []) or [])
+        node_uid = getattr(error, "node_uid", "")
+        record.run_context = record.run_context.mark_finished()
+        record.status = SessionStatus.ESCALATED
+        record.metadata.status_message = (
+            f"Escalated: step '{node_uid}' failed after "
+            f"{len(attempts)} attempt(s). A human operator should review."
+        )
+        self._repo.save(record)
+        self._audit.record(
+            record.run_id, "session.escalated",
+            node_uid=node_uid,
+            reason="retries_exhausted",
+            attempts=attempts,
+            error=str(getattr(error, "last", error)),
+            identity=record.identity.id,
+            blueprint_id=record.blueprint_id,
+        )
+
     def cancel(
         self,
         record: SessionRecord,

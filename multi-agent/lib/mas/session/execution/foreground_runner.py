@@ -103,7 +103,11 @@ class ForegroundSessionRunner:
                 session.graph_state, session_id=run_id,
             )
         except Exception as e:
-            self._lifecycle.fail(session.record, e)
+            from mas.engine.retry import RetriesExhaustedError
+            if isinstance(e, RetriesExhaustedError):
+                self._lifecycle.escalate(session.record, e)
+            else:
+                self._lifecycle.fail(session.record, e)
             raise
         finally:
             channel.close()
@@ -165,7 +169,11 @@ class ForegroundSessionRunner:
 
             try:
                 if result["error"]:
-                    self._lifecycle.fail(session.record, result["error"])
+                    from mas.engine.retry import RetriesExhaustedError
+                    if isinstance(result["error"], RetriesExhaustedError):
+                        self._lifecycle.escalate(session.record, result["error"])
+                    else:
+                        self._lifecycle.fail(session.record, result["error"])
                 elif result["state"] is not None:
                     self._lifecycle.complete(session.record, result["state"])
             except Exception:
