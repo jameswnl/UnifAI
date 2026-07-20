@@ -34,6 +34,18 @@ def create_app(container, config: AppConfig = None) -> Flask:
     }})
 
     app.container = container
+
+    # Thin harness auth ([4.2], issue #24): bearer/K8s TokenReview, fail-closed.
+    if getattr(config, "harness_auth_enabled", False):
+        from mas.core.harness_auth import build_authenticator, AllowAllAuthorizer
+        from inbound.flask.harness_auth_mw import install_harness_auth
+        authenticator = build_authenticator(config)
+        authorizer = getattr(container, "harness_authorizer", None) or AllowAllAuthorizer()
+        install_harness_auth(
+            app, authenticator, authorizer,
+            exempt_prefixes=config.harness_auth_exempt_prefixes,
+        )
+
     register_all_endpoints(app)
     RequestRules(app)
 

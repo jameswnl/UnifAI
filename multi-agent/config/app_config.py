@@ -44,6 +44,14 @@ class AppConfig(SharedConfig):
     durable_approvals: bool = True
     hitl_timeout_seconds: float = 86400.0
     hitl_response_ttl_seconds: int = 86400
+    # Thin harness auth ([4.2], issue #24)
+    harness_auth_enabled: bool = False
+    harness_auth_mode: str = "bearer"        # bearer | k8s
+    harness_auth_bearer_token: str = ""
+    harness_auth_exempt_prefixes: list = ["/api/health", "/api/triggers/webhook"]
+    k8s_api_server: str = "https://kubernetes.default.svc"
+    k8s_ca_cert: str = ""
+    k8s_reviewer_token: str = ""
     # Observability ([4.3], issue #25)
     otel_enabled: bool = False
     otel_exporter: str = "console"       # console | otlp
