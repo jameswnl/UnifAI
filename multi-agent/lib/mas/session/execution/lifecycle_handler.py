@@ -54,7 +54,12 @@ class BackgroundLifecycleHandler:
 
     def fail(self, run_id: str, error_message: str) -> None:
         record = self._manager.get_record(run_id)
-        self._lifecycle.fail(record, RuntimeError(error_message))
+        # v1 escalation detection across the Temporal activity boundary:
+        # RetriesExhaustedError arrives as a serialized message ([2.5], #15).
+        if "failed after" in error_message and "attempt(s)" in error_message:
+            self._lifecycle.escalate(record, RuntimeError(error_message))
+        else:
+            self._lifecycle.fail(record, RuntimeError(error_message))
         self._close_channel(run_id)
 
     def cancel(self, run_id: str) -> None:

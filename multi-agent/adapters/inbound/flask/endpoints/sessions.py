@@ -259,6 +259,41 @@ def get_session_audit(session_id, offset, limit):
         return jsonify({"error": str(e)}), 500
 
 
+@sessions_bp.route("/session.escalation.get", methods=["GET"])
+@from_query({
+    "session_id": fields.Str(data_key="sessionId", required=True),
+})
+def get_session_escalation(session_id):
+    """Escalation package ([2.5], issue #15): the handoff record for a run
+    that automation gave up on — status, reason, attempts, plus pointers to
+    the transcript and audit trail."""
+    try:
+        svc = current_app.container.session_service
+        chat = None
+        record_status = None
+        try:
+            record_status = svc.get_status(run_id=session_id)
+        except Exception:
+            pass
+        audit = current_app.container.audit_trail
+        escalations = [e for e in audit.list(session_id)
+                       if e.get("type") == "session.escalated"]
+        if not escalations:
+            return jsonify({"error": "no escalation for this session"}), 404
+        return jsonify({
+            "session_id": session_id,
+            "status": record_status,
+            "escalation": escalations[-1],
+            "refs": {
+                "transcript": f"/api/sessions/session.events.get?sessionId={session_id}",
+                "audit": f"/api/sessions/session.audit.get?sessionId={session_id}",
+                "state": f"/api/sessions/session.state.get?sessionId={session_id}",
+            },
+        }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @sessions_bp.route("/session.chat.get", methods=["GET"])
 @from_query({
     "session_id": fields.Str(data_key="sessionId", required=True),
