@@ -84,7 +84,15 @@ def main() -> None:
         f"{base}/api/sessions/session.events.get?sessionId={run_id}")
     assert status == 200, f"transcript fetch failed: {status} {transcript}"
     assert transcript["count"] > 0, "durable transcript is empty"
-    print(f"[5/5] durable transcript has {transcript['count']} events — smoke test PASSED")
+    print(f"[5/6] durable transcript has {transcript['count']} events")
+
+    status, audit = call(
+        f"{base}/api/sessions/session.audit.get?sessionId={run_id}")
+    assert status == 200, f"audit fetch failed: {status} {audit}"
+    audit_types = [e.get("type") for e in audit["events"]]
+    assert "session.started" in audit_types, f"audit missing start: {audit_types}"
+    assert "session.completed" in audit_types, f"audit missing completion: {audit_types}"
+    print(f"[6/6] audit trail: {audit_types} — smoke test PASSED")
 
 
 if __name__ == "__main__":

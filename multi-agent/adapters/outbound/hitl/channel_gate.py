@@ -32,9 +32,12 @@ class ChannelApprovalGate(ApprovalGate):
         self,
         channel: InputCapableChannel,
         config: HITLConfig,
+        audit=None,
     ) -> None:
+        from mas.core.audit import NULL_AUDIT
         super().__init__(config)
         self._channel = channel
+        self._audit = audit or NULL_AUDIT
 
     def _send_and_wait(
         self,
@@ -73,6 +76,9 @@ class ChannelApprovalGate(ApprovalGate):
             "reasoning": request.reasoning,
         })
 
+        self._audit.approval_requested(
+            channel_sid, request_id=request.request_id,
+            tool_name=request.tool_name, node_uid=request.origin.node_uid)
         raw = self._channel.wait_for(request.request_id, timeout=timeout)
         if raw is None:
             logger.info(
@@ -80,6 +86,9 @@ class ChannelApprovalGate(ApprovalGate):
                 request.request_id,
                 self._config.timeout_decision.value,
             )
+            self._audit.approval_resolved(
+                channel_sid, request_id=request.request_id,
+                decision=self._config.timeout_decision.value, source="timeout")
             return None
 
         decision = raw.get("decision", "reject")
@@ -90,6 +99,9 @@ class ChannelApprovalGate(ApprovalGate):
             raw.get("feedback", ""),
         )
 
+        self._audit.approval_resolved(
+            channel_sid, request_id=request.request_id,
+            decision=decision, source="human")
         return ApprovalResponse(
             request_id=request.request_id,
             decision=ApprovalDecision(decision),
