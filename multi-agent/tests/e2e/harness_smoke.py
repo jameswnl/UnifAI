@@ -92,7 +92,22 @@ def main() -> None:
     audit_types = [e.get("type") for e in audit["events"]]
     assert "session.started" in audit_types, f"audit missing start: {audit_types}"
     assert "session.completed" in audit_types, f"audit missing completion: {audit_types}"
-    print(f"[6/6] audit trail: {audit_types} — smoke test PASSED")
+    print(f"[6/7] audit trail: {audit_types}")
+
+    # Webhook trigger ([4.1], #23): launch the same blueprint via an alert-style
+    # POST and confirm it produces a running/finished session.
+    status, launched = call(
+        f"{base}/api/triggers/webhook",
+        {"blueprintId": blueprint_id, "inputs": {"user_prompt": "via webhook"}})
+    assert status == 202, f"webhook trigger failed: {status} {launched}"
+    triggered_run = launched["runId"]
+    for _ in range(30):
+        st, chat = call(f"{base}/api/sessions/session.chat.get?sessionId={triggered_run}")
+        if st == 200 and chat.get("status") in ("COMPLETED", "RUNNING", "ESCALATED", "FAILED"):
+            break
+        time.sleep(1)
+    assert st == 200, f"triggered session not found: {st}"
+    print(f"[7/7] webhook trigger launched session {triggered_run} (status {chat.get('status')}) — smoke test PASSED")
 
 
 if __name__ == "__main__":

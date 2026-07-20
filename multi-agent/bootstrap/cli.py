@@ -60,6 +60,9 @@ def _maybe_resume(container, cfg) -> None:
         return
     if getattr(cfg, "resume_on_startup", False):
         container.resume_service.resume_all_async()
+    # Scheduler ([4.1], issue #23): only run in an API process.
+    if getattr(container, "scheduler", None) is not None:
+        container.scheduler.start()
 
 
 # ── API: dev ─────────────────────────────────────────────────────
