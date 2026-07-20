@@ -241,6 +241,24 @@ def get_session_events(session_id, offset, limit):
         return jsonify({"error": str(e)}), 500
 
 
+@sessions_bp.route("/session.audit.get", methods=["GET"])
+@from_query({
+    "session_id": fields.Str(data_key="sessionId", required=True),
+    "offset": fields.Int(data_key="offset", load_default=0),
+    "limit": fields.Int(data_key="limit", load_default=1000),
+})
+def get_session_audit(session_id, offset, limit):
+    """Audit trail ([1.3], issue #9): typed lifecycle/approval records."""
+    audit = current_app.container.audit_trail
+    if not audit.enabled:
+        return jsonify({"error": "audit trail is disabled"}), 501
+    try:
+        events = audit.list(session_id, offset=offset, limit=limit)
+        return jsonify({"session_id": session_id, "events": events}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @sessions_bp.route("/session.chat.get", methods=["GET"])
 @from_query({
     "session_id": fields.Str(data_key="sessionId", required=True),

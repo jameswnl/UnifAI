@@ -96,6 +96,24 @@ class AppContainer(metaclass=SingletonMeta):
                 "(shares/templates/statistics repositories are mongo-only)"
             )
 
+        # Audit trail ([1.3], issue #9): typed records on a dedicated store.
+        from mas.core.audit import AuditTrail
+        audit_store = None
+        if cfg.audit_enabled:
+            if self._use_postgres:
+                from outbound.postgres.event_store import PgSessionEventStore
+                audit_store = PgSessionEventStore(
+                    dsn=cfg.postgres_dsn, table="audit_events")
+            else:
+                from outbound.mongo.event_store import MongoSessionEventStore
+                audit_store = MongoSessionEventStore(
+                    mongodb_ip=cfg.mongodb_ip,
+                    mongodb_port=cfg.mongodb_port,
+                    db_name=cfg.mongo_db,
+                    coll_name="audit_events",
+                )
+        self.audit_trail = AuditTrail(audit_store)
+
         self.element_registry = ElementRegistry()
         self.element_registry.auto_discover()
 
@@ -296,7 +314,8 @@ class AppContainer(metaclass=SingletonMeta):
             storage_cleaner=self.session_storage_cleaner,
         )
 
-        self.session_lifecycle = SessionLifecycle(repository=self.session_repo)
+        self.session_lifecycle = SessionLifecycle(repository=self.session_repo,
+                                                  audit=self.audit_trail)
         self.input_projector = SessionInputProjector(repository=self.session_repo)
 
         self.channel_factory = self._create_channel_factory(cfg)
@@ -323,6 +342,7 @@ class AppContainer(metaclass=SingletonMeta):
         self.overrides_store = self._create_overrides_store()
         self.gate_factory = ChannelApprovalGateFactory(
             overrides_store=self.overrides_store,
+            audit=self.audit_trail,
         )
 
         foreground_runner = ForegroundSessionRunner(

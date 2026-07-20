@@ -36,8 +36,10 @@ class ChannelApprovalGateFactory(ApprovalGateFactory):
     process — foreground Flask threads or Temporal workers.
     """
 
-    def __init__(self, overrides_store: OverridesStore) -> None:
+    def __init__(self, overrides_store: OverridesStore, audit=None) -> None:
+        from mas.core.audit import NULL_AUDIT
         self._overrides_store = overrides_store
+        self._audit = audit or NULL_AUDIT
 
     @property
     def overrides_store(self) -> OverridesStore:
@@ -53,7 +55,8 @@ class ChannelApprovalGateFactory(ApprovalGateFactory):
             return None, None
 
         config = HITLConfig(enabled=True)
-        inner_gate = ChannelApprovalGate(channel=channel, config=config)
+        inner_gate = ChannelApprovalGate(channel=channel, config=config,
+                                         audit=self._audit)
 
         raw_overrides = getattr(session_metadata, "hitl_overrides", None) or {}
         overrides = ApprovalOverrides.from_dict(raw_overrides)

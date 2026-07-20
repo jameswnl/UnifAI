@@ -24,8 +24,11 @@ class SessionLifecycle:
     Stateless — all state lives in the SessionRecord and the repository.
     """
 
-    def __init__(self, repository: SessionRepository) -> None:
+    def __init__(self, repository: SessionRepository,
+                 audit=None) -> None:
+        from mas.core.audit import NULL_AUDIT
         self._repo = repository
+        self._audit = audit or NULL_AUDIT
 
     def begin(
         self,
@@ -44,6 +47,8 @@ class SessionLifecycle:
         record.update_context(scope=scope)
         record.status = SessionStatus.RUNNING
         self._repo.save(record)
+        self._audit.session_started(record.run_id,
+                                    identity=record.identity.id, scope=scope)
 
     def complete(
         self,
@@ -60,6 +65,7 @@ class SessionLifecycle:
         record.run_context = record.run_context.mark_finished()
         record.status = SessionStatus.COMPLETED
         self._repo.save(record)
+        self._audit.session_completed(record.run_id)
 
     def fail(
         self,
@@ -75,6 +81,7 @@ class SessionLifecycle:
         record.run_context = record.run_context.mark_finished()
         record.status = SessionStatus.FAILED
         self._repo.save(record)
+        self._audit.session_failed(record.run_id, error=str(error))
 
     def cancel(
         self,
@@ -89,6 +96,7 @@ class SessionLifecycle:
             return
         record.run_context = record.run_context.mark_finished()
         record.status = SessionStatus.CANCELLED
+        self._audit.session_cancelled(record.run_id)
         record.metadata.tags[CANCELLED_TAG] = "true"
         record.metadata.status_message = CANCELLED_STATUS_MESSAGE
         msgs = record.graph_state.messages

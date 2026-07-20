@@ -34,6 +34,8 @@ class AppConfig(SharedConfig):
     # Durable transcript: persist every session event to the database
     # (session_events). Disable only for throwaway dev runs.
     transcript_persistence: bool = True
+    # Audit trail: typed records for lifecycle + approval decisions
+    audit_enabled: bool = True
     # Engine
     engine_name: str = "temporal"
     temporal_task_queue: str = "graph-engine"
