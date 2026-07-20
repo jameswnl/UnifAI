@@ -177,14 +177,13 @@ def create_test_step_context(uid: str, adjacent_node_uids: list = None):
         StepContext instance properly configured for testing
     """
     from mas.graph.models import StepContext
-    from unittest.mock import Mock
-    
-    # Create mock metadata (lightweight, doesn't need real implementation)
-    metadata = Mock()
-    metadata.uid = uid
-    metadata.display_name = f"Test {uid}"
-    metadata.type = "test_node"
-    metadata.description = "Test node for testing"
+    from mas.blueprints.models.blueprint import StepMeta
+
+    # Real StepMeta — StepContext validates this field (a Mock fails pydantic validation)
+    metadata = StepMeta(
+        display_name=f"Test {uid}",
+        description="Test node for testing",
+    )
     
     # ✅ Create REAL AdjacentNodes with REAL ElementCards
     adjacent_nodes = create_test_adjacent_nodes(node_uids=adjacent_node_uids)

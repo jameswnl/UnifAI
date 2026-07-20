@@ -1,0 +1,41 @@
+name: LCS Harness CI
+
+# CI lane for the Lightspeed harness profile (implementation-plan item [0.6],
+# https://github.com/jameswnl/UnifAI/issues/6). Gates PRs into lcs-main.
+#
+# Runs the MAS unit suite minus a quarantine list of tests that were already
+# failing on upstream main (tracked in issue #3). The quarantine file
+# (multi-agent/tests/quarantine-lcs.txt) is a pytest args-file of --deselect
+# entries; pytest args-files do not support comment lines, so context lives
+# here. Shrinking that file is part of [0.3].
+
+on:
+  pull_request:
+    branches: [lcs-main]
+  push:
+    branches: [lcs-main]
+  workflow_dispatch:
+
+jobs:
+  mas-unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install MAS with harness-profile extras
+        run: |
+          pip install -e ./global_utils
+          # a2a/tools/claude/temporal are needed until catalog imports are
+          # feature-gated ([0.2]); shrink this list when that lands.
+          pip install -e "./multi-agent[flask,mongo,langgraph,llms,tools,a2a,claude,redis,rag,temporal,test]"
+
+      - name: Run unit tests (minus quarantine)
+        working-directory: multi-agent
+        run: |
+          python -m pytest tests/unit -q @tests/quarantine-lcs.txt
