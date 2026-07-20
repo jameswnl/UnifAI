@@ -25,10 +25,12 @@ class SessionLifecycle:
     """
 
     def __init__(self, repository: SessionRepository,
-                 audit=None) -> None:
+                 audit=None, notifier=None) -> None:
         from mas.core.audit import NULL_AUDIT
+        from mas.core.notify import NULL_NOTIFIER
         self._repo = repository
         self._audit = audit or NULL_AUDIT
+        self._notifier = notifier or NULL_NOTIFIER
 
     def begin(
         self,
@@ -113,6 +115,13 @@ class SessionLifecycle:
             error=str(getattr(error, "last", error)),
             identity=record.identity.id,
             blueprint_id=record.blueprint_id,
+        )
+        self._notifier.session_escalated(
+            record.run_id,
+            node_uid=node_uid,
+            reason="retries_exhausted",
+            error=str(getattr(error, "last", error)),
+            attempts=len(attempts),
         )
 
     def cancel(

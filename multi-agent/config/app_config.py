@@ -36,6 +36,9 @@ class AppConfig(SharedConfig):
     transcript_persistence: bool = True
     # Audit trail: typed records for lifecycle + approval decisions
     audit_enabled: bool = True
+    # Notifier targets ([2.6]): empty = disabled
+    notify_webhook_url: str = ""
+    notify_slack_webhook_url: str = ""
     # Engine
     engine_name: str = "temporal"
     temporal_task_queue: str = "graph-engine"
