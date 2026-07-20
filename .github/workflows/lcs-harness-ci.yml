@@ -92,7 +92,7 @@ jobs:
       - name: Start MAS API (harness profile) and run smoke test
         working-directory: multi-agent
         env:
-          ENGINE_NAME: langgraph
+          # ENGINE_NAME unset — exercises the new langgraph default ([4.4], #26)
           PLATFORM_ENDPOINTS: "false"
           MONGODB_IP: localhost
           MONGODB_PORT: "27017"

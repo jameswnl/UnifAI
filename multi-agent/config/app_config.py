@@ -61,8 +61,10 @@ class AppConfig(SharedConfig):
     trigger_webhook_token: str = ""      # empty = open (dev); set to require header
     scheduler_enabled: bool = False
     scheduler_poll_seconds: int = 30
-    # Engine
-    engine_name: str = "temporal"
+    # Engine ([4.4], issue #26): default to the in-process engine so the
+    # out-of-box harness/installer profile needs no Temporal. Set
+    # ENGINE_NAME=temporal for the distributed/OpenShift profile.
+    engine_name: str = "langgraph"
     # LangGraph durability ([2.3]): Postgres checkpointer + resume-on-startup
     # (requires engine_name=langgraph and db_backend=postgres)
     langgraph_checkpointing: bool = False
