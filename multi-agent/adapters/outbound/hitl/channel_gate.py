@@ -33,11 +33,14 @@ class ChannelApprovalGate(ApprovalGate):
         channel: InputCapableChannel,
         config: HITLConfig,
         audit=None,
+        notifier=None,
     ) -> None:
         from mas.core.audit import NULL_AUDIT
+        from mas.core.notify import NULL_NOTIFIER
         super().__init__(config)
         self._channel = channel
         self._audit = audit or NULL_AUDIT
+        self._notifier = notifier or NULL_NOTIFIER
 
     def _send_and_wait(
         self,
@@ -79,6 +82,10 @@ class ChannelApprovalGate(ApprovalGate):
         self._audit.approval_requested(
             channel_sid, request_id=request.request_id,
             tool_name=request.tool_name, node_uid=request.origin.node_uid)
+        self._notifier.approval_requested(
+            channel_sid, request_id=request.request_id,
+            tool_name=request.tool_name, node_uid=request.origin.node_uid,
+            reasoning=request.reasoning or "")
         raw = self._channel.wait_for(request.request_id, timeout=timeout)
         if raw is None:
             logger.info(

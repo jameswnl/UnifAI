@@ -114,6 +114,11 @@ class AppContainer(metaclass=SingletonMeta):
                 )
         self.audit_trail = AuditTrail(audit_store)
 
+        # Notifier hub ([2.6], issue #16): webhook/Slack delivery for
+        # approvals + escalations in headless deployments.
+        from outbound.notify import build_notifier_hub
+        self.notifier_hub = build_notifier_hub(cfg)
+
         self.element_registry = ElementRegistry()
         self.element_registry.auto_discover()
 
@@ -315,7 +320,8 @@ class AppContainer(metaclass=SingletonMeta):
         )
 
         self.session_lifecycle = SessionLifecycle(repository=self.session_repo,
-                                                  audit=self.audit_trail)
+                                                  audit=self.audit_trail,
+                                                  notifier=self.notifier_hub)
         self.input_projector = SessionInputProjector(repository=self.session_repo)
 
         self.channel_factory = self._create_channel_factory(cfg)
@@ -343,6 +349,7 @@ class AppContainer(metaclass=SingletonMeta):
         self.gate_factory = ChannelApprovalGateFactory(
             overrides_store=self.overrides_store,
             audit=self.audit_trail,
+            notifier=self.notifier_hub,
         )
 
         foreground_runner = ForegroundSessionRunner(

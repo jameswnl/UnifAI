@@ -49,7 +49,8 @@ async def run_worker(
     )
 
     lifecycle = SessionLifecycle(repository=container.session_repo,
-                                 audit=container.audit_trail)
+                                 audit=container.audit_trail,
+                                 notifier=container.notifier_hub)
     lifecycle_handler = BackgroundLifecycleHandler(
         session_manager=container.session_manager,
         lifecycle=lifecycle,
