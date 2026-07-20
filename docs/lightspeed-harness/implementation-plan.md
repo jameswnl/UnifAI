@@ -66,6 +66,8 @@ Goal: durable/restartable/auditable workflows on **both** engines; failures reac
 
 ---
 
+> **Spike outcome (2026-07-20, [poc-maturity-spike.md](poc-maturity-spike.md)):** the `lightspeed-cloud-agents` PoC is production-shaped (11K src / 28K test LOC, 3 spawner impls, signal-based approvals, transcript store, triggers, TLS, escalation w/ packagers). Verdict: **import ~10 modules, build 2 thin adapters.** Phases 3–4 below shift from build-first to import-and-port; Phase 2 items 2.2/2.5/2.6 adopt the PoC's signal pattern and escalation/notifier modules. Genuine builds that remain: LangGraph checkpointing (2.3), MAS Postgres repositories (1.1), retry failure-history verification (2.1).
+
 ## Phase 3 — Ephemeral Sandbox Execution (P1, ~4–6 wk, shaped by Phase 0.5 spike)
 
 Goal: doc 2's R4/R7/R8 execution model — fresh sandbox container per agent step — as a catalog extension, engines untouched.
