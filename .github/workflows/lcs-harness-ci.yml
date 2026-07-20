@@ -158,8 +158,15 @@ jobs:
           SECRET_KEY: harness-e2e-ci-only
           LANGGRAPH_CHECKPOINTING: "true"
           RESUME_ON_STARTUP: "true"
+          # Thin harness auth on ([4.2], #24): smoke test presents the token;
+          # an unauthenticated call must be rejected.
+          HARNESS_AUTH_ENABLED: "true"
+          HARNESS_AUTH_BEARER_TOKEN: e2e-bearer-token
         run: |
           mas api dev --port 8002 &> mas-api.log &
+          sleep 6
+          code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8002/api/sessions/session.chat.get?sessionId=x")
+          test "$code" = "401" || { echo "expected 401 without token, got $code"; exit 1; }
           python tests/e2e/harness_smoke.py --url http://localhost:8002
 
       - name: Server log on failure

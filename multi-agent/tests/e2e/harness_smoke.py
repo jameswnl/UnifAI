@@ -15,6 +15,7 @@ Exits 0 on success. Stdlib-only so it runs in CI and bare dev boxes.
 
 import argparse
 import json
+import os
 import pathlib
 import sys
 import time
@@ -26,6 +27,12 @@ HEADERS = {
     "Content-Type": "application/json",
     "X-Authenticated-User": "harness-e2e",
 }
+
+# When the harness is started with auth enabled, the smoke test presents
+# the same bearer token ([4.2], issue #24).
+_bearer = os.environ.get("HARNESS_AUTH_BEARER_TOKEN", "")
+if _bearer:
+    HEADERS["Authorization"] = f"Bearer {_bearer}"
 
 
 def call(url: str, payload: dict | None = None, timeout: int = 60):
